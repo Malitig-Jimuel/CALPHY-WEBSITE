@@ -9,10 +9,60 @@ datasource db {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  name         String?
-  email        String   @unique
-  passwordHash String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id             String           @id @default(cuid())
+  name           String?
+  email          String           @unique
+  passwordHash   String
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  lessonProgress LessonProgress[]
+  quizAttempts   QuizAttempt[]
+}
+
+model LessonProgress {
+  id             String    @id @default(cuid())
+  userId         String
+  lessonSlug     String
+  completed      Boolean   @default(false)
+  lastAccessedAt DateTime  @default(now())
+  completedAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, lessonSlug])
+  @@index([userId])
+}
+
+model QuizAttempt {
+  id             String       @id @default(cuid())
+  userId         String
+  quizId         String
+  score          Int          @default(0)
+  totalQuestions Int
+  createdAt      DateTime     @default(now())
+
+  user    User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  answers QuizAnswer[]
+
+  @@index([userId, createdAt])
+  @@index([userId, quizId])
+}
+
+model QuizAnswer {
+  id             String      @id @default(cuid())
+  attemptId      String
+  questionId     String
+  questionText   String
+  selectedAnswer String
+  correctAnswer  String
+  isCorrect      Boolean
+  createdAt      DateTime    @default(now())
+
+  attempt QuizAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+
+  @@unique([attemptId, questionId])
+  @@index([attemptId])
 }

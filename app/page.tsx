@@ -1,6 +1,6 @@
-
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
@@ -124,8 +124,49 @@ const colorStyles: Record<
 };
 
 export default function HomePage() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+
+    async function checkSession() {
+      try {
+        const response = await fetch("/api/auth/session", {
+          credentials: "same-origin",
+          cache: "no-store",
+        });
+
+        if (!response.ok) {
+          throw new Error("Unable to check session");
+        }
+
+        const session = await response.json();
+
+        if (active) {
+          setIsLoggedIn(Boolean(session?.user));
+        }
+      } catch {
+        if (active) {
+          setIsLoggedIn(false);
+        }
+      } finally {
+        if (active) {
+          setIsCheckingSession(false);
+        }
+      }
+    }
+
+    checkSession();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
   return (
-    <main className="min-h-screen overflow-hidden bg-[#080D1B] text-[#F8FAFC]">
+    <main className="min-h-screen scroll-smooth overflow-x-hidden bg-[#080D1B] text-[#F8FAFC]">
+      {/* Navigation */}
       <nav className="sticky top-0 z-40 border-b border-white/10 bg-[#080D1B]/90 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4">
           <Link href="/" className="text-2xl font-black tracking-tight">
@@ -133,7 +174,11 @@ export default function HomePage() {
           </Link>
 
           <div className="hidden items-center gap-8 text-sm text-slate-300 md:flex">
-            <Link href="#topics" className="transition hover:text-sky-400">
+            <Link
+              href="#topics"
+              scroll={true}
+              className="transition hover:text-sky-400"
+            >
               Lessons
             </Link>
             <Link href="#about" className="transition hover:text-sky-400">
@@ -141,29 +186,82 @@ export default function HomePage() {
             </Link>
           </div>
 
-          <Link
-            href="/dashboard"
-            className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold transition hover:border-sky-400/40 hover:bg-sky-400/10"
-          >
-            Dashboard <ArrowRight size={16} />
-          </Link>
+          <div className="flex items-center gap-2">
+            {isCheckingSession ? (
+              <div
+                className="h-10 w-24 animate-pulse rounded-xl bg-white/5"
+                aria-label="Checking login status"
+              />
+            ) : isLoggedIn ? (
+              <Link
+                href="/dashboard"
+                className="inline-flex items-center gap-2 rounded-xl border border-sky-400/30 bg-sky-400/10 px-4 py-2.5 text-sm font-semibold text-sky-300 transition hover:bg-sky-400/20"
+              >
+                Dashboard <ArrowRight size={16} />
+              </Link>
+            ) : (
+              <>
+                <Link
+                  href="/login"
+                  className="inline-flex items-center rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold transition hover:bg-white/10"
+                >
+                  Login
+                </Link>
+                <Link
+                  href="/register"
+                  className="inline-flex items-center gap-2 rounded-xl bg-sky-400 px-4 py-2.5 text-sm font-bold text-slate-950 transition hover:bg-sky-300"
+                >
+                  Register <ArrowRight size={16} />
+                </Link>
+              </>
+            )}
+          </div>
         </div>
       </nav>
 
-      <section className="relative mx-auto max-w-7xl px-5 pb-20 pt-20 md:pb-28 md:pt-28">
-        <div className="pointer-events-none absolute left-1/2 top-10 -z-0 h-72 w-72 -translate-x-1/2 rounded-full bg-sky-500/10 blur-[100px]" />
+      {/* Full-height Hero */}
+      <section className="relative flex min-h-[calc(100svh-73px)] items-center justify-center overflow-hidden px-5 py-12 md:py-16">
+        <div className="pointer-events-none absolute left-1/2 top-1/2 h-[500px] w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-sky-500/[0.08] blur-[120px]" />
+        <div className="pointer-events-none absolute left-[8%] top-[18%] h-48 w-48 rounded-full bg-violet-500/[0.06] blur-[100px]" />
+        <div className="pointer-events-none absolute bottom-[10%] right-[8%] h-56 w-56 rounded-full bg-cyan-500/[0.06] blur-[100px]" />
+
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute left-[7%] top-[17%] hidden text-5xl font-light text-sky-300/[0.12] lg:block"
+        >
+          +
+        </div>
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute right-[10%] top-[23%] hidden text-6xl font-light text-violet-300/[0.12] lg:block"
+        >
+          ∑
+        </div>
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute bottom-[16%] left-[15%] hidden text-4xl font-light text-cyan-300/[0.12] lg:block"
+        >
+          λ
+        </div>
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute bottom-[20%] right-[13%] hidden text-5xl font-light text-sky-300/[0.12] lg:block"
+        >
+          E = mc²
+        </div>
 
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="relative z-10 max-w-4xl"
+          transition={{ duration: 0.7, ease: "easeOut" }}
+          className="relative z-10 mx-auto flex w-full max-w-6xl flex-col items-center text-center"
         >
-          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-sky-400/20 bg-sky-400/10 px-4 py-2 text-sm font-semibold text-sky-300">
-            <Atom size={16} /> Interactive Physics Learning
+          <div className="mb-7 inline-flex items-center justify-center gap-2 rounded-full border border-sky-400/20 bg-sky-400/10 px-4 py-2 text-sm font-semibold text-sky-300 shadow-lg shadow-sky-500/[0.04]">
+            <Atom size={16} />
+            Interactive Physics Learning
           </div>
 
-          <h1 className="text-5xl font-black leading-[1.08] tracking-tight sm:text-6xl md:text-7xl">
+          <h1 className="max-w-5xl text-5xl font-black leading-[1.08] tracking-tight sm:text-6xl md:text-7xl lg:text-8xl">
             Physics made
             <br />
             <span className="bg-gradient-to-r from-sky-300 via-cyan-300 to-violet-400 bg-clip-text text-transparent">
@@ -171,51 +269,83 @@ export default function HomePage() {
             </span>
           </h1>
 
-          <p className="mt-7 max-w-2xl text-base leading-8 text-slate-400 md:text-lg">
+          <p className="mx-auto mt-7 max-w-3xl text-base leading-8 text-slate-400 sm:text-lg md:text-xl">
             Learn physics beyond memorizing formulas. Explore interactive
             simulations, understand the concepts, and test your knowledge
             through quizzes with Calph++.
           </p>
 
-          <div className="mt-9 flex flex-wrap gap-4">
+          <div className="mt-9 flex flex-wrap items-center justify-center gap-4">
             <Link
               href="#topics"
-              className="inline-flex items-center gap-2 rounded-xl bg-sky-400 px-6 py-3.5 font-bold text-slate-950 transition hover:bg-sky-300"
+              className="inline-flex items-center gap-2 rounded-xl bg-sky-400 px-6 py-3.5 font-bold text-slate-950 shadow-lg shadow-sky-500/10 transition hover:-translate-y-0.5 hover:bg-sky-300"
             >
               Explore lessons <ArrowRight size={18} />
             </Link>
+
             <Link
               href="/register"
-              className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-6 py-3.5 font-semibold transition hover:bg-white/10"
+              className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-6 py-3.5 font-semibold transition hover:-translate-y-0.5 hover:bg-white/10"
             >
               Get started <ChevronRight size={18} />
             </Link>
           </div>
 
-          <div className="mt-12 grid max-w-2xl grid-cols-3 gap-4 border-t border-white/10 pt-7">
-            <div>
-              <p className="text-2xl font-black text-sky-300">06</p>
-              <p className="mt-1 text-xs text-slate-500 sm:text-sm">
+          <div className="mx-auto mt-12 grid w-full max-w-3xl grid-cols-3 gap-3 border-t border-white/10 pt-7 sm:mt-14 sm:gap-6 sm:pt-8">
+            <div className="flex flex-col items-center">
+              <p className="text-2xl font-black text-sky-300 sm:text-3xl">
+                06
+              </p>
+              <p className="mt-2 text-center text-xs text-slate-500 sm:text-sm">
                 Physics topics
               </p>
             </div>
-            <div>
-              <p className="text-2xl font-black text-violet-300">Labs</p>
-              <p className="mt-1 text-xs text-slate-500 sm:text-sm">
+
+            <div className="flex flex-col items-center">
+              <p className="text-2xl font-black text-violet-300 sm:text-3xl">
+                Labs
+              </p>
+              <p className="mt-2 text-center text-xs text-slate-500 sm:text-sm">
                 Interactive simulations
               </p>
             </div>
-            <div>
-              <p className="text-2xl font-black text-emerald-300">Quizzes</p>
-              <p className="mt-1 text-xs text-slate-500 sm:text-sm">
+
+            <div className="flex flex-col items-center">
+              <p className="text-2xl font-black text-emerald-300 sm:text-3xl">
+                Quizzes
+              </p>
+              <p className="mt-2 text-center text-xs text-slate-500 sm:text-sm">
                 Practice and review
               </p>
             </div>
           </div>
+
+          {/* Smooth-scroll link to lesson cards */}
+          <a
+            href="#topics"
+            onClick={(event) => {
+              event.preventDefault();
+              document.getElementById("topics")?.scrollIntoView({
+                behavior: "smooth",
+                block: "start",
+              });
+              window.history.replaceState(null, "", "#topics");
+            }}
+            className="mt-10 flex flex-col items-center gap-2 text-xs font-medium text-slate-500 transition hover:text-sky-300"
+          >
+            <span>Discover the lessons</span>
+            <span className="animate-bounce">
+              <ChevronRight size={17} className="rotate-90" />
+            </span>
+          </a>
         </motion.div>
       </section>
 
-      <section id="topics" className="scroll-mt-24 border-t border-white/10 bg-[#0B1222]">
+      {/* Lessons */}
+      <section
+        id="topics"
+        className="scroll-mt-24 border-t border-white/10 bg-[#0B1222]"
+      >
         <div className="mx-auto max-w-7xl px-5 py-20 md:py-24">
           <div className="mb-10 flex flex-wrap items-end justify-between gap-5">
             <div>
@@ -226,13 +356,15 @@ export default function HomePage() {
                 Explore Physics
               </h2>
               <p className="mt-3 max-w-2xl leading-7 text-slate-400">
-                Choose any topic to start learning through interactive explanations, calculators, and quizzes.
+                Choose any topic to start learning through interactive
+                explanations, calculators, and quizzes.
               </p>
             </div>
 
             <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2 text-xs text-slate-400">
               <CheckCircle2 size={15} className="text-emerald-300" />
-              {topics.filter((topic) => topic.available).length} of {topics.length} lessons available
+              {topics.filter((topic) => topic.available).length} of{" "}
+              {topics.length} lessons available
             </div>
           </div>
 
@@ -263,6 +395,7 @@ export default function HomePage() {
                   </div>
 
                   <h3 className="text-xl font-bold">{topic.title}</h3>
+
                   <p className="mt-3 flex-1 text-sm leading-6 text-slate-400">
                     {topic.description}
                   </p>
@@ -297,7 +430,10 @@ export default function HomePage() {
                   {cardContent}
                 </Link>
               ) : (
-                <div key={topic.number} aria-label={`${topic.title}, coming soon`}>
+                <div
+                  key={topic.number}
+                  aria-label={`${topic.title}, coming soon`}
+                >
                   {cardContent}
                 </div>
               );
@@ -306,6 +442,7 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* About */}
       <section id="about" className="border-t border-white/10">
         <div className="mx-auto grid max-w-7xl gap-10 px-5 py-20 md:grid-cols-2 md:items-center md:py-24">
           <div>
@@ -329,7 +466,8 @@ export default function HomePage() {
               </div>
               <h3 className="font-bold">Visual learning</h3>
               <p className="mt-2 text-sm leading-6 text-slate-400">
-                Explore how physical quantities change through interactive demonstrations.
+                Explore how physical quantities change through interactive
+                demonstrations.
               </p>
             </div>
 
@@ -346,6 +484,7 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* Footer */}
       <footer className="border-t border-white/10">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-5 py-7 text-sm text-slate-500">
           <Link href="/" className="text-lg font-black text-white">
