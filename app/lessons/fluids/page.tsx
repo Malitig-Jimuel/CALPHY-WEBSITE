@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import {
   ArrowLeft,
@@ -312,6 +312,67 @@ function WorkedExample({ example }: { example: Example }) {
 const G = 9.81;
 const WATER_DENSITY = 1000;
 
+/* ---------- Archimedes lab layout (pixels) ---------- */
+const TANK_H = 360; // height of the tank box
+const SURFACE_Y = 90; // y position of the fluid surface
+const OBJ_SIZE = 96; // object is h-24 w-24 = 96px
+
+/* ---------- Bernoulli simulator geometry (SVG units) ---------- */
+const PIPE_X0 = 10;
+const PIPE_X1 = 410;
+const PIPE_LEN = PIPE_X1 - PIPE_X0;
+const PIPE_CY = 150; // vertical centre of the pipe
+const WIDE_H = 80; // half-height of the wide sections
+const NARROW_H = 34; // half-height of the narrow section
+const SPEED_RATIO = WIDE_H / NARROW_H; // continuity: narrower means faster
+const LINE_FRACTIONS = [-0.8, -0.4, 0, 0.4, 0.8]; // where each streamline sits inside the pipe
+const DOTS_PER_LINE = 8;
+const TUBE_H = 52; // height of each pressure tube
+const WIDE_TUBE_X = 60;
+const NARROW_TUBE_X = 210;
+const P_UPSTREAM = 200000; // Pa, pressure in the wide section (fixed)
+
+function smoothstep(a: number, b: number, x: number) {
+  const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
+  return t * t * (3 - 2 * t);
+}
+
+// Half-height of the pipe at horizontal position x: wide -> narrow -> wide
+function halfHeight(x: number) {
+  const down = smoothstep(110, 175, x);
+  const up = smoothstep(245, 310, x);
+  return WIDE_H - (WIDE_H - NARROW_H) * (down - up);
+}
+
+const PIPE_XS = Array.from({ length: PIPE_LEN / 4 + 1 }, (_, i) => PIPE_X0 + i * 4);
+
+function linePath(fraction: number) {
+  return PIPE_XS.map(
+    (x, i) => `${i === 0 ? "M" : "L"}${x} ${(PIPE_CY + fraction * halfHeight(x)).toFixed(1)}`
+  ).join(" ");
+}
+
+const PIPE_OUTLINE =
+  linePath(-1) +
+  " " +
+  [...PIPE_XS]
+    .reverse()
+    .map((x) => `L${x} ${(PIPE_CY + halfHeight(x)).toFixed(1)}`)
+    .join(" ") +
+  " Z";
+
+const STREAMLINE_PATHS = LINE_FRACTIONS.map((f) => linePath(f));
+
+function initialDots(): number[][] {
+  return LINE_FRACTIONS.map((_, i) => {
+    const offset = (i * 0.37) % 1;
+    return Array.from(
+      { length: DOTS_PER_LINE },
+      (_, j) => PIPE_X0 + ((j + offset) / DOTS_PER_LINE) * PIPE_LEN
+    );
+  });
+}
+
 export default function FluidsPage() {
   // Archimedes lab
   const [objectDensity, setObjectDensity] = useState(600);
@@ -324,6 +385,8 @@ export default function FluidsPage() {
 
   // Bernoulli demo
   const [flowSpeed, setFlowSpeed] = useState(50);
+  const [dots, setDots] = useState<number[][]>(initialDots);
+  const flowSpeedRef = useRef(flowSpeed);
 
   // Torricelli lab
   const [tankHeight, setTankHeight] = useState(2); // m
@@ -332,14 +395,65 @@ export default function FluidsPage() {
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [submitted, setSubmitted] = useState(false);
 
+  // Keep the latest slider value available to the animation loop
+  useEffect(() => {
+    flowSpeedRef.current = flowSpeed;
+  }, [flowSpeed]);
+
+  // Animate the flow dots: they speed up wherever the pipe narrows
+  useEffect(() => {
+    let frame = 0;
+    let last = performance.now();
+
+    const step = (now: number) => {
+      const dt = Math.min(0.05, (now - last) / 1000);
+      last = now;
+      const baseSpeed = flowSpeedRef.current * 1.4; // SVG units per second in the wide section
+
+      setDots((previous) =>
+        previous.map((line) =>
+          line.map((x) => {
+            const next = x + baseSpeed * (WIDE_H / halfHeight(x)) * dt;
+            return next > PIPE_X1 ? next - PIPE_LEN : next;
+          })
+        )
+      );
+      frame = requestAnimationFrame(step);
+    };
+
+    frame = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(frame);
+  }, []);
+
   // Derived values
   const isFloating = objectDensity < fluidDensity;
   const isSuspended = objectDensity === fluidDensity;
   const specificGravity = objectDensity / WATER_DENSITY;
 
+  // Where the object sits in the tank:
+  // - floating: the submerged fraction equals the density ratio, so it sinks lower as density rises
+  // - equal density: hovers fully submerged in the middle
+  // - denser than the fluid: rests on the bottom
+  const objectTop = isFloating
+    ? SURFACE_Y - (1 - objectDensity / fluidDensity) * OBJ_SIZE
+    : isSuspended
+    ? SURFACE_Y + (TANK_H - SURFACE_Y - OBJ_SIZE) / 2
+    : TANK_H - OBJ_SIZE - 4;
+
   const speedOut = (areaIn * speedIn) / areaOut; // A1v1 = A2v2
   const flowRate = (areaIn / 10000) * speedIn; // Q = Av, m³/s
   const torricelliSpeed = Math.sqrt(2 * G * tankHeight); // v = √(2gh)
+
+  // Bernoulli numbers (horizontal pipe, water): P1 + ½ρv1² = P2 + ½ρv2²
+  const vWide = (flowSpeed / 100) * 5; // m/s
+  const vNarrow = vWide * SPEED_RATIO; // m/s
+  const pNarrow = P_UPSTREAM - 0.5 * WATER_DENSITY * (vNarrow ** 2 - vWide ** 2); // Pa
+  const levelFor = (pressure: number) =>
+    8 + Math.min(1, Math.max(0, (pressure - 140000) / 60000)) * (TUBE_H - 12);
+  const wideLevel = levelFor(P_UPSTREAM);
+  const narrowLevel = levelFor(pNarrow);
+  const wideWallTop = PIPE_CY - WIDE_H;
+  const narrowWallTop = PIPE_CY - NARROW_H;
 
   const score = fluidQuestions.reduce(
     (total, question, index) => total + (answers[index] === question.answer ? 1 : 0),
@@ -586,25 +700,47 @@ export default function FluidsPage() {
               </div>
             </div>
 
-            <div className="relative flex min-h-[330px] items-center justify-center overflow-hidden rounded-2xl border border-sky-300/20 bg-[#080D1B] p-4">
-              <div className="absolute inset-x-0 top-[22%] border-t-2 border-sky-300/60" />
-              <div className="absolute inset-x-0 top-[22%] bottom-0 bg-sky-500/15" />
-              <div className="absolute left-4 top-4 text-xs font-semibold uppercase tracking-widest text-sky-300">
-                Fluid surface
-              </div>
-              <motion.div
-                animate={{
-                  y: isFloating ? -55 : isSuspended ? 5 : 65,
-                  rotate: isFloating ? -5 : isSuspended ? 0 : 8,
-                }}
-                transition={{ type: "spring", stiffness: 90, damping: 13 }}
-                className="relative z-10 flex h-24 w-24 items-center justify-center rounded-2xl border-2 border-white/70 bg-violet-400/80 shadow-[0_0_45px_rgba(139,92,246,0.25)]"
+            <div>
+              <div
+                className="relative overflow-hidden rounded-2xl border border-sky-300/20 bg-[#080D1B]"
+                style={{ height: TANK_H }}
               >
-                <span className="text-center text-xs font-black text-white">
-                  OBJECT<br />{objectDensity}
-                </span>
-              </motion.div>
-              <div className="absolute bottom-4 right-4 text-xs text-slate-400">Fluid: {fluidDensity} kg/m³</div>
+                {/* Water body (drawn over the object so the submerged part looks tinted) */}
+                <div
+                  className="pointer-events-none absolute inset-x-0 z-20 bg-sky-500/15"
+                  style={{ top: SURFACE_Y, bottom: 0 }}
+                />
+                <div
+                  className="pointer-events-none absolute inset-x-0 z-30 border-t-2 border-sky-300/70"
+                  style={{ top: SURFACE_Y }}
+                />
+                <div
+                  className="absolute left-4 z-30 text-xs font-semibold uppercase tracking-widest text-sky-300"
+                  style={{ top: SURFACE_Y - 24 }}
+                >
+                  Fluid surface
+                </div>
+                <div className="absolute bottom-3 left-4 z-30 text-xs text-slate-500">Tank bottom</div>
+
+                <motion.div
+                  initial={false}
+                  animate={{ y: objectTop, rotate: isFloating ? -4 : 0 }}
+                  transition={{ type: "spring", stiffness: 70, damping: 12 }}
+                  className="absolute left-1/2 top-0 z-10 -ml-12 flex h-24 w-24 items-center justify-center rounded-2xl border-2 border-white/70 bg-violet-400/80 shadow-[0_0_45px_rgba(139,92,246,0.25)]"
+                >
+                  <span className="text-center text-xs font-black text-white">
+                    OBJECT<br />{objectDensity}
+                  </span>
+                </motion.div>
+
+                <div className="absolute bottom-3 right-4 z-30 text-xs text-slate-400">
+                  Fluid: {fluidDensity} kg/m³
+                </div>
+              </div>
+              <p className="mt-3 text-xs leading-5 text-slate-500">
+                Raise the object’s density and it sinks lower into the fluid. Once it is denser than
+                the fluid, it drops to the bottom of the tank.
+              </p>
             </div>
           </div>
           <WorkedExample example={examples.archimedes} />
@@ -742,7 +878,7 @@ export default function FluidsPage() {
           <div className="grid gap-8 lg:grid-cols-2 lg:items-center">
             <div className="rounded-2xl border border-white/10 bg-[#080D1B] p-5">
               <div className="mb-3 flex items-center justify-between gap-3">
-                <label htmlFor="flowSpeed" className="text-sm text-slate-300">Flow speed</label>
+                <label htmlFor="flowSpeed" className="text-sm text-slate-300">Flow speed (wide section)</label>
                 <strong className="text-violet-300">{flowSpeed}%</strong>
               </div>
               <input
@@ -756,48 +892,80 @@ export default function FluidsPage() {
               />
               <div className="mt-5 grid grid-cols-2 gap-3">
                 <div className="rounded-xl bg-white/5 p-4">
-                  <p className="text-xs text-slate-400">Relative speed</p>
-                  <p className="mt-1 text-xl font-bold text-sky-300">{flowSpeed}%</p>
+                  <p className="text-xs text-slate-400">Wide: speed</p>
+                  <p className="mt-1 text-xl font-bold text-sky-300">{vWide.toFixed(2)} m/s</p>
                 </div>
                 <div className="rounded-xl bg-white/5 p-4">
-                  <p className="text-xs text-slate-400">Relative pressure</p>
-                  <p className="mt-1 text-xl font-bold text-violet-300">{110 - flowSpeed}%</p>
+                  <p className="text-xs text-slate-400">Narrow: speed</p>
+                  <p className="mt-1 text-xl font-bold text-violet-300">{vNarrow.toFixed(2)} m/s</p>
+                </div>
+                <div className="rounded-xl bg-white/5 p-4">
+                  <p className="text-xs text-slate-400">Wide: pressure</p>
+                  <p className="mt-1 text-xl font-bold text-sky-300">{(P_UPSTREAM / 1000).toFixed(1)} kPa</p>
+                  <p className="text-xs text-slate-500">100% relative</p>
+                </div>
+                <div className="rounded-xl bg-white/5 p-4">
+                  <p className="text-xs text-slate-400">Narrow: pressure</p>
+                  <p className="mt-1 text-xl font-bold text-violet-300">{(pNarrow / 1000).toFixed(1)} kPa</p>
+                  <p className="text-xs text-slate-500">{((pNarrow / P_UPSTREAM) * 100).toFixed(1)}% relative</p>
                 </div>
               </div>
               <p className="mt-4 text-xs leading-5 text-slate-500">
-                Illustrative relative values only, not measured physical pressure.
+                Assumes water (1000 kg/m³) in a horizontal pipe with 200 kPa in the wide section. The
+                narrow-section speed follows continuity, and its pressure follows Bernoulli:
+                P₂ = P₁ − ½ρ(v₂² − v₁²).
               </p>
             </div>
 
             <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#080D1B] p-4">
-              <svg viewBox="0 0 420 180" role="img" aria-label="Illustration of fluid flowing through a narrow pipe">
-                <defs>
-                  <linearGradient id="fluidGradient" x1="0" x2="1">
-                    <stop offset="0%" stopColor="#38BDF8" stopOpacity=".25" />
-                    <stop offset="100%" stopColor="#8B5CF6" stopOpacity=".8" />
-                  </linearGradient>
-                </defs>
-                <path d="M10 25 H110 Q150 25 175 65 H245 Q270 25 310 25 H410 V155 H310 Q270 155 245 115 H175 Q150 155 110 155 H10 Z" fill="#17243A" stroke="#64748B" strokeWidth="2" />
-                <path d="M10 60 H130 Q160 60 180 78 H240 Q260 60 290 60 H410 V120 H290 Q260 120 240 102 H180 Q160 120 130 120 H10 Z" fill="url(#fluidGradient)" />
-                {Array.from({ length: 5 }).map((_, index) => (
-                  <motion.path
-                    key={index}
-                    d={`M${20 + index * 8} 90 H${385 - index * 8}`}
-                    stroke="#7DD3FC"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeDasharray="7 10"
-                    animate={{ strokeDashoffset: [0, -34] }}
-                    transition={{ duration: Math.max(0.35, 2.2 - flowSpeed / 60), repeat: Infinity, ease: "linear" }}
-                  />
+              <svg viewBox="0 0 420 260" role="img" aria-label="Water flowing through a pipe that narrows, with streamlines, moving dots and pressure tubes">
+                {/* Pressure tubes */}
+                <rect x={WIDE_TUBE_X - 9} y={wideWallTop - TUBE_H} width="18" height={TUBE_H} fill="none" stroke="#64748B" strokeWidth="2" />
+                <rect x={WIDE_TUBE_X - 8} y={wideWallTop - wideLevel} width="16" height={wideLevel} fill="#38BDF8" fillOpacity=".7" />
+                <rect x={NARROW_TUBE_X - 9} y={narrowWallTop - TUBE_H} width="18" height={TUBE_H} fill="none" stroke="#64748B" strokeWidth="2" />
+                <rect x={NARROW_TUBE_X - 8} y={narrowWallTop - narrowLevel} width="16" height={narrowLevel} fill="#A78BFA" fillOpacity=".8" />
+                <text x={WIDE_TUBE_X} y={wideWallTop - TUBE_H - 6} fill="#7DD3FC" fontSize="11" textAnchor="middle">
+                  P₁ {(P_UPSTREAM / 1000).toFixed(0)} kPa
+                </text>
+                <text x={NARROW_TUBE_X} y={narrowWallTop - TUBE_H - 6} fill="#C4B5FD" fontSize="11" textAnchor="middle">
+                  P₂ {(pNarrow / 1000).toFixed(0)} kPa
+                </text>
+
+                {/* Pipe */}
+                <path d={PIPE_OUTLINE} fill="#17243A" stroke="#64748B" strokeWidth="2" />
+                <path d={PIPE_OUTLINE} fill="#38BDF8" fillOpacity=".08" />
+
+                {/* Streamlines */}
+                {STREAMLINE_PATHS.map((d, i) => (
+                  <path key={i} d={d} fill="none" stroke="#7DD3FC" strokeOpacity=".28" strokeWidth="1.5" />
                 ))}
-                <text x="82" y="48" fill="#CBD5E1" fontSize="11" textAnchor="middle">Wider</text>
-                <text x="210" y="50" fill="#CBD5E1" fontSize="11" textAnchor="middle">Narrower</text>
-                <text x="82" y="145" fill="#7DD3FC" fontSize="11" textAnchor="middle">Slower</text>
-                <text x="210" y="145" fill="#C4B5FD" fontSize="11" textAnchor="middle">Faster</text>
+
+                {/* Moving dots: faster and more violet where the pipe is narrow */}
+                {dots.map((line, i) =>
+                  line.map((x, j) => {
+                    const h = halfHeight(x);
+                    const speedFactor = (WIDE_H / h - 1) / (SPEED_RATIO - 1); // 0 = wide, 1 = narrow
+                    const hue = 195 + 80 * speedFactor;
+                    return (
+                      <circle
+                        key={`${i}-${j}`}
+                        cx={x}
+                        cy={PIPE_CY + LINE_FRACTIONS[i] * h}
+                        r="3.4"
+                        fill={`hsl(${hue} 90% 68%)`}
+                      />
+                    );
+                  })
+                )}
+
+                {/* Labels */}
+                <text x="60" y="250" fill="#7DD3FC" fontSize="11" textAnchor="middle">Wide: slower, higher pressure</text>
+                <text x="210" y="250" fill="#C4B5FD" fontSize="11" textAnchor="middle">Narrow: faster, lower pressure</text>
+                <text x="350" y="250" fill="#7DD3FC" fontSize="11" textAnchor="middle">Flow →</text>
               </svg>
               <p className="mt-3 text-center text-xs text-slate-500">
-                In a constriction, ideal fluid flow speeds up as the cross-sectional area decreases.
+                The dots speed up and spread out in the narrow section, and the streamlines squeeze
+                together. Taller liquid in a tube means higher pressure.
               </p>
             </div>
           </div>
