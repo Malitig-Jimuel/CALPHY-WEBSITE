@@ -30,6 +30,7 @@ type Example = {
 };
 
 const fluidQuestions: Question[] = [
+  // Pressure
   {
     question: "What is the SI unit of pressure?",
     options: ["Newton", "Joule", "Pascal", "Watt"],
@@ -43,18 +44,46 @@ const fluidQuestions: Question[] = [
     explanation: "P = F/A = 100 N / 2 m² = 50 Pa.",
   },
   {
+    question: "What is the gauge pressure at a depth of 3 m in water? (ρ = 1000 kg/m³, g = 9.8 m/s²)",
+    options: ["2,940 Pa", "29,400 Pa", "3,000 Pa", "98,000 Pa"],
+    answer: 1,
+    explanation: "P = ρgh = 1000 × 9.8 × 3 = 29,400 Pa.",
+  },
+
+  // Density and specific gravity
+  {
+    question: "A block has a mass of 500 kg and a volume of 2 m³. What is its density?",
+    options: ["1000 kg/m³", "4 kg/m³", "2.5 kg/m³", "250 kg/m³"],
+    answer: 3,
+    explanation: "ρ = m / V = 500 kg / 2 m³ = 250 kg/m³.",
+  },
+  {
     question: "A substance has a specific gravity of 0.8. What is its density?",
-    options: ["800 kg/m³", "80 kg/m³", "1250 kg/m³", "0.8 kg/m³"],
-    answer: 0,
+    options: ["80 kg/m³", "1250 kg/m³", "800 kg/m³", "0.8 kg/m³"],
+    answer: 2,
     explanation: "ρ = SG × ρ_water = 0.8 × 1000 kg/m³ = 800 kg/m³.",
   },
   {
-    question: "An object has a density of 600 kg/m³ and is placed in water (1000 kg/m³). What happens?",
-    options: ["It sinks", "It floats", "It has zero buoyant force", "It disappears"],
+    question: "What are the units of specific gravity?",
+    options: ["No units (it is dimensionless)", "kg/m³", "N/m²", "m³/kg"],
+    answer: 0,
+    explanation: "Specific gravity is a ratio of two densities, so the units cancel and it has no units.",
+  },
+  {
+    question: "Iron has a density of 7800 kg/m³. What is its specific gravity, and what happens in water?",
+    options: ["0.78, it floats", "7.8, it sinks", "7.8, it floats", "78, it sinks"],
     answer: 1,
+    explanation: "SG = 7800 / 1000 = 7.8. Since SG is greater than 1, iron is denser than water and sinks.",
+  },
+  {
+    question: "An object has a density of 600 kg/m³ and is placed in water (1000 kg/m³). What happens?",
+    options: ["It floats", "It sinks", "It has zero buoyant force", "It disappears"],
+    answer: 0,
     explanation:
       "The object is less dense than water (specific gravity 0.6), so it floats. Part of the object stays above the surface.",
   },
+
+  // Archimedes' principle
   {
     question: "What does Archimedes' principle state?",
     options: [
@@ -68,11 +97,48 @@ const fluidQuestions: Question[] = [
   },
   {
     question:
+      "A 0.005 m³ object is fully submerged in water. What is the buoyant force? (ρ = 1000 kg/m³, g = 9.8 m/s²)",
+    options: ["4.9 N", "490 N", "5 N", "49 N"],
+    answer: 3,
+    explanation: "Fᵦ = ρ g V = 1000 × 9.8 × 0.005 = 49 N.",
+  },
+  {
+    question: "An object with a specific gravity of 0.6 floats in water. What fraction of it is submerged?",
+    options: ["40%", "60%", "50%", "100%"],
+    answer: 1,
+    explanation:
+      "A floating object displaces its own weight of fluid, so the submerged fraction equals ρobject / ρfluid = 0.6, or 60%.",
+  },
+  {
+    question: "An object weighs 80 N in air. When fully submerged in water, the buoyant force is 30 N. What is its apparent weight?",
+    options: ["110 N", "80 N", "50 N", "30 N"],
+    answer: 2,
+    explanation: "Apparent weight = actual weight − buoyant force = 80 − 30 = 50 N.",
+  },
+
+  // Rate of flow and continuity
+  {
+    question:
       "Water flows through a pipe of area 10 cm² at 2 m/s into a section of area 5 cm². What is the new speed?",
     options: ["1 m/s", "2 m/s", "4 m/s", "10 m/s"],
     answer: 2,
     explanation: "A₁v₁ = A₂v₂, so v₂ = (10 × 2) / 5 = 4 m/s.",
   },
+  {
+    question: "Water moves at 3 m/s through a pipe with a cross-sectional area of 0.002 m². What is the volume flow rate?",
+    options: ["0.006 m³/s", "0.0006 m³/s", "1.5 m³/s", "6 m³/s"],
+    answer: 0,
+    explanation: "Q = A v = 0.002 × 3 = 0.006 m³/s, which is 6 L/s.",
+  },
+  {
+    question: "A pipe narrows to half its original diameter. By what factor does the flow speed change?",
+    options: ["It doubles", "It halves", "It stays the same", "It quadruples"],
+    answer: 3,
+    explanation:
+      "Area depends on diameter squared, so half the diameter means one quarter of the area. By continuity, the speed becomes four times larger.",
+  },
+
+  // Bernoulli's principle
   {
     question: "For steady flow of an ideal fluid, where the fluid moves faster, its pressure is generally...",
     options: ["Higher", "Lower", "Always zero", "Unchanged in every situation"],
@@ -81,10 +147,44 @@ const fluidQuestions: Question[] = [
       "Bernoulli's equation links pressure, speed, and height. At the same height, faster flow corresponds to lower pressure under its ideal-flow assumptions.",
   },
   {
+    question:
+      "Water flows through a horizontal pipe. At point 1, P = 150,000 Pa and v = 1 m/s. At point 2, v = 5 m/s. What is the pressure at point 2? (ρ = 1000 kg/m³)",
+    options: ["162,000 Pa", "149,000 Pa", "12,000 Pa", "138,000 Pa"],
+    answer: 3,
+    explanation:
+      "P₂ = P₁ + ½ρ(v₁² − v₂²) = 150,000 + 500(1 − 25) = 150,000 − 12,000 = 138,000 Pa.",
+  },
+  {
+    question: "Which set of assumptions does Bernoulli's equation make?",
+    options: [
+      "Steady, ideal, incompressible flow along a streamline",
+      "A fluid at rest only",
+      "A fluid with large viscous friction",
+      "A gas compressed to a constant temperature",
+    ],
+    answer: 0,
+    explanation:
+      "Bernoulli's equation applies to steady flow of an ideal (frictionless), incompressible fluid along a streamline.",
+  },
+
+  // Torricelli's theorem
+  {
     question: "Water leaves a hole 5 m below the surface of an open tank. What is the exit speed? (g = 9.8 m/s²)",
     options: ["5 m/s", "9.9 m/s", "49 m/s", "98 m/s"],
     answer: 1,
     explanation: "v = √(2gh) = √(2 × 9.8 × 5) = √98 ≈ 9.9 m/s.",
+  },
+  {
+    question: "According to Torricelli's theorem, the exit speed of a fluid from a small hole depends mainly on what?",
+    options: [
+      "The density of the fluid and the width of the tank",
+      "The mass of the fluid",
+      "The volume of the tank",
+      "The depth of the hole below the surface",
+    ],
+    answer: 3,
+    explanation:
+      "v = √(2gh) depends only on the depth h of the hole below the surface (and gravity), not on the fluid's density or the tank's size.",
   },
 ];
 
