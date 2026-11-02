@@ -77,8 +77,7 @@ export async function POST(request: Request) {
         lastAccessedAt: now,
       },
       update: {
-        completed,
-        completedAt: completed ? now : null,
+        ...(completed ? { completed: true, completedAt: now } : {}),
         lastAccessedAt: now,
       },
     });

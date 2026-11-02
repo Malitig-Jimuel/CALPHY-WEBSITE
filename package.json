@@ -6,7 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:generate": "prisma generate",
+    "db:migrate:deploy": "prisma migrate deploy",
+    "db:import:sqlite:check": "node scripts/import-sqlite-to-neon.mjs --dry-run",
+    "db:import:sqlite": "node scripts/import-sqlite-to-neon.mjs"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",

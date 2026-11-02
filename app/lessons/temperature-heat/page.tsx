@@ -16,6 +16,30 @@ import {
   Thermometer,
   XCircle,
 } from "lucide-react";
+import LessonQuizFeedback from "../LessonQuizFeedback";
+import LessonHeader from "../LessonHeader";
+import LessonNavigation from "../LessonNavigation";
+import LessonSidebar from "../LessonSidebar";
+import LessonProgressTracker from "../LessonProgressTracker";
+import LessonQuizQuestion, {
+  getQuizOptionClass,
+  QUIZ_OPTION_BASE_CLASS,
+  QUIZ_RETRY_BUTTON_CLASS,
+  QUIZ_SUBMIT_BUTTON_CLASS,
+} from "../LessonQuizQuestion";
+import { useLessonQuizResult } from "../useLessonQuizResult";
+
+const lessonSections = [
+  { id: "temperature-heat", label: "Temperature & heat" },
+  { id: "heat-transfer", label: "Heat transfer" },
+  { id: "temperature-converter", label: "Temperature converter" },
+  { id: "thermal-expansion", label: "Thermal expansion" },
+  { id: "specific-heat", label: "Specific heat" },
+  { id: "worked-examples", label: "Worked examples" },
+  { id: "quiz", label: "Quiz" },
+];
+
+type HeatTransferMode = "conduction" | "convection" | "radiation";
 
 /* ------------------------------------------------------------------ */
 /*  Content based on: PHYSICS 2 LEC 04 – Temperature and Heat (PPT)    */
@@ -309,6 +333,8 @@ export default function TemperatureHeatPage() {
   // Temperature converter
   const [celsius, setCelsius] = useState(25);
   const [fahrenheitInput, setFahrenheitInput] = useState(98.6);
+  const [heatTransferMode, setHeatTransferMode] =
+    useState<HeatTransferMode>("conduction");
 
   // Key ideas accordion
   const [activeIdea, setActiveIdea] = useState(0);
@@ -331,6 +357,13 @@ export default function TemperatureHeatPage() {
   // Quiz
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [submitted, setSubmitted] = useState(false);
+  const {
+    saveState,
+    saveMessage,
+    passed,
+    saveResult,
+    resetResult,
+  } = useLessonQuizResult();
 
   const kelvin = celsius + 273.15;
   const fahrenheit = (celsius * 9) / 5 + 32;
@@ -358,41 +391,47 @@ export default function TemperatureHeatPage() {
   function resetQuiz() {
     setAnswers({});
     setSubmitted(false);
+    resetResult();
+  }
+
+  function submitQuiz() {
+    setSubmitted(true);
+    void saveResult(
+      "temperature-heat",
+      questions.map((_, index) => answers[index] ?? -1),
+      questions.map((question) => ({
+        question: question.question,
+        choices: question.options,
+        explanation: question.explanation,
+      }))
+    );
   }
 
   return (
-    <main className="min-h-screen bg-[#080D1B] text-[#F8FAFC]">
-      <nav className="sticky top-0 z-30 border-b border-white/10 bg-[#080D1B]/90 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4">
-          <Link href="/" className="text-xl font-black tracking-tight">
-            Calph<span className="text-sky-400">++</span>
-          </Link>
-          <Link
-            href="/#topics"
-            className="flex items-center gap-2 text-sm text-slate-300 transition hover:text-sky-400"
-          >
-            <ArrowLeft size={16} /> All topics
-          </Link>
-        </div>
-      </nav>
+    <main className="flex h-dvh flex-col overflow-hidden bg-[#080D1B] text-[#F8FAFC]">
+      <LessonNavigation />
 
-      <div className="mx-auto max-w-7xl px-5 py-10 md:py-16">
-        <motion.header
-          initial={{ opacity: 0, y: 18 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-12"
-        >
-          <div className="mb-5 flex items-center gap-2 text-sm font-semibold text-orange-300">
-            <Thermometer size={18} /> PHYSICS MODULE 03
-          </div>
-          <h1 className="max-w-4xl text-4xl font-black tracking-tight sm:text-5xl md:text-6xl">
-            Temperature <span className="text-orange-300">& Heat</span>
-          </h1>
-          <p className="mt-5 max-w-3xl text-base leading-7 text-slate-400 md:text-lg">
+      <div className="grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] md:grid-rows-1 md:grid-cols-[250px_minmax(0,1fr)]">
+        <LessonSidebar sections={lessonSections} accentClass="text-orange-300" />
+        <div id="lesson-main-scroll" className="min-w-0 overflow-y-auto overscroll-contain px-4 py-6 sm:px-6 lg:px-10">
+        <div className="mx-auto w-full max-w-[1600px]">
+        <LessonProgressTracker lessonSlug="temperature-heat" />
+        <LessonHeader
+          module="Physics module 03"
+          icon={<Thermometer size={18} />}
+          accentClass="text-orange-300"
+          title={
+            <>
+              Temperature <span className="text-orange-300">&amp; Heat</span>
+            </>
+          }
+          description={
+            <>
             Learn what temperature and heat mean, convert between temperature scales,
             explore thermal expansion, and calculate heat using specific heat capacity.
-          </p>
-        </motion.header>
+            </>
+          }
+        />
 
         <section className="mb-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[
@@ -411,7 +450,7 @@ export default function TemperatureHeatPage() {
           ))}
         </section>
 
-        <section className="mb-12 grid gap-6 lg:grid-cols-2">
+        <section id="temperature-heat" className="mb-12 scroll-mt-28 grid gap-6 lg:grid-cols-2">
           <article className="rounded-3xl border border-white/10 bg-[#111A2E] p-6 md:p-8">
             <div className="mb-4 flex items-center gap-3">
               <div className="rounded-xl bg-orange-400/10 p-3 text-orange-300">
@@ -551,7 +590,116 @@ export default function TemperatureHeatPage() {
           </article>
         </section>
 
-        <section className="mb-12 rounded-3xl border border-orange-400/20 bg-[#111A2E] p-6 md:p-8">
+        <section
+          id="heat-transfer"
+          className="mb-12 scroll-mt-28 rounded-3xl border border-orange-400/20 bg-[#111A2E] p-6 md:p-8"
+        >
+          <div className="mb-5">
+            <p className="text-sm font-semibold text-orange-300">KEY CONCEPTS</p>
+            <h2 className="mt-2 text-2xl font-bold md:text-3xl">
+              Heat Transfer Demonstration
+            </h2>
+            <p className="mt-3 max-w-4xl leading-7 text-slate-400">
+              Net heat transfer is from higher to lower temperature. Select a
+              mechanism to see how energy moves; the diagrams are qualitative,
+              not measurements of a transfer rate.
+            </p>
+          </div>
+          <div
+            role="group"
+            aria-label="Select a heat-transfer mechanism"
+            className="grid gap-3 sm:grid-cols-3"
+          >
+            {(["conduction", "convection", "radiation"] as const).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                aria-pressed={heatTransferMode === mode}
+                onClick={() => setHeatTransferMode(mode)}
+                className={`rounded-xl border px-4 py-3 text-left font-semibold capitalize transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-300 ${
+                  heatTransferMode === mode
+                    ? "border-orange-300/50 bg-orange-300/10 text-orange-200"
+                    : "border-white/10 text-slate-300 hover:bg-white/5"
+                }`}
+              >
+                {mode}
+              </button>
+            ))}
+          </div>
+          <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] lg:items-center">
+            <div className="rounded-2xl border border-white/10 bg-[#080D1B] p-4">
+              {heatTransferMode === "conduction" ? (
+                <svg viewBox="0 0 360 150" role="img" aria-label="Thermal energy moving through a solid from its hot end toward its cool end" className="w-full">
+                  <defs>
+                    <linearGradient id="conductionGradient">
+                      <stop offset="0%" stopColor="#F97316" />
+                      <stop offset="100%" stopColor="#38BDF8" />
+                    </linearGradient>
+                  </defs>
+                  <rect x="35" y="58" width="290" height="34" rx="17" fill="url(#conductionGradient)" opacity=".75" />
+                  {[70, 120, 170, 220, 270].map((x) => <circle key={x} cx={x} cy="75" r="7" fill="#F8FAFC" opacity=".8" />)}
+                  <path d="M75 112 H286" stroke="#FDBA74" strokeWidth="3" markerEnd="url(#heatTransferArrow)" />
+                  <text x="50" y="42" fill="#FDBA74" fontSize="13">Hot end</text>
+                  <text x="276" y="42" fill="#7DD3FC" fontSize="13">Cool end</text>
+                  <defs><marker id="heatTransferArrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#FDBA74" /></marker></defs>
+                </svg>
+              ) : heatTransferMode === "convection" ? (
+                <svg viewBox="0 0 360 150" role="img" aria-label="Convection currents circulating in a heated fluid" className="w-full">
+                  <rect x="66" y="22" width="228" height="108" rx="14" fill="#1E293B" stroke="#64748B" strokeWidth="2" />
+                  <path d="M110 100 C75 48 135 28 174 47" fill="none" stroke="#FB923C" strokeWidth="4" markerEnd="url(#convectionArrow)" />
+                  <path d="M185 48 C235 25 282 62 250 104" fill="none" stroke="#38BDF8" strokeWidth="4" markerEnd="url(#convectionArrow)" />
+                  <path d="M240 108 C195 133 131 126 111 101" fill="none" stroke="#A78BFA" strokeWidth="4" markerEnd="url(#convectionArrow)" />
+                  <circle cx="180" cy="111" r="11" fill="#F97316" />
+                  <text x="180" y="18" fill="#CBD5E1" fontSize="12" textAnchor="middle">Fluid circulates as warm, less-dense regions rise</text>
+                  <defs><marker id="convectionArrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#A78BFA" /></marker></defs>
+                </svg>
+              ) : (
+                <svg viewBox="0 0 360 150" role="img" aria-label="Thermal radiation traveling as electromagnetic waves from a warm source to an object" className="w-full">
+                  <circle cx="70" cy="75" r="30" fill="#F97316" />
+                  <path d="M110 75 C123 45 136 105 149 75 S175 45 188 75 S214 105 227 75 S253 45 266 75" fill="none" stroke="#FDBA74" strokeWidth="4" />
+                  <rect x="282" y="47" width="35" height="56" rx="6" fill="#475569" stroke="#CBD5E1" strokeWidth="2" />
+                  <text x="70" y="126" fill="#FDBA74" fontSize="12" textAnchor="middle">Warm source</text>
+                  <text x="300" y="126" fill="#CBD5E1" fontSize="12" textAnchor="middle">Object</text>
+                </svg>
+              )}
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-[#080D1B] p-5">
+              {heatTransferMode === "conduction" ? (
+                <>
+                  <h3 className="font-bold text-orange-200">Conduction</h3>
+                  <p className="mt-2 text-sm leading-6 text-slate-300">
+                    Energy is transferred through microscopic interactions between
+                    neighboring particles, without bulk motion of the material.
+                    Metals conduct well; insulation reduces conduction.
+                  </p>
+                  <p className="mt-3 text-sm text-slate-400">Example: a metal spoon warms along its length when one end is in hot liquid.</p>
+                </>
+              ) : heatTransferMode === "convection" ? (
+                <>
+                  <h3 className="font-bold text-sky-200">Convection</h3>
+                  <p className="mt-2 text-sm leading-6 text-slate-300">
+                    In fluids, temperature differences can create density
+                    differences and buoyant motion. The moving fluid transports
+                    internal energy; convection cannot occur in a vacuum.
+                  </p>
+                  <p className="mt-3 text-sm text-slate-400">Example: warm water rises and cooler water sinks as water is heated from below.</p>
+                </>
+              ) : (
+                <>
+                  <h3 className="font-bold text-violet-200">Thermal radiation</h3>
+                  <p className="mt-2 text-sm leading-6 text-slate-300">
+                    Matter emits and absorbs electromagnetic radiation. Radiation
+                    can transfer energy through empty space, so it does not
+                    require particle contact or a material medium.
+                  </p>
+                  <p className="mt-3 text-sm text-slate-400">Example: energy from the Sun reaches Earth through space.</p>
+                </>
+              )}
+            </div>
+          </div>
+        </section>
+
+        <section id="temperature-converter" className="mb-12 scroll-mt-28 rounded-3xl border border-orange-400/20 bg-[#111A2E] p-6 md:p-8">
           <div className="mb-6 flex items-center gap-3">
             <div className="rounded-xl bg-orange-400/10 p-3 text-orange-300">
               <Thermometer size={22} />
@@ -673,7 +821,7 @@ export default function TemperatureHeatPage() {
           </div>
         </section>
 
-        <section className="mb-12 rounded-3xl border border-sky-400/20 bg-[#111A2E] p-6 md:p-8">
+        <section id="thermal-expansion" className="mb-12 scroll-mt-28 rounded-3xl border border-sky-400/20 bg-[#111A2E] p-6 md:p-8">
           <div className="mb-6 flex items-center gap-3">
             <div className="rounded-xl bg-sky-400/10 p-3 text-sky-300">
               <Ruler size={22} />
@@ -779,7 +927,7 @@ export default function TemperatureHeatPage() {
           </div>
         </section>
 
-        <section className="mb-12 rounded-3xl border border-violet-400/20 bg-[#111A2E] p-6 md:p-8">
+        <section id="specific-heat" className="mb-12 scroll-mt-28 rounded-3xl border border-violet-400/20 bg-[#111A2E] p-6 md:p-8">
           <div className="mb-6 flex items-center gap-3">
             <div className="rounded-xl bg-violet-400/10 p-3 text-violet-300">
               <Flame size={22} />
@@ -890,7 +1038,7 @@ export default function TemperatureHeatPage() {
           </div>
         </section>
 
-        <section className="mb-12 rounded-3xl border border-white/10 bg-[#111A2E] p-6 md:p-8">
+        <section id="worked-examples" className="mb-12 scroll-mt-28 rounded-3xl border border-white/10 bg-[#111A2E] p-6 md:p-8">
           <div className="mb-6 flex items-center gap-3">
             <div className="rounded-xl bg-emerald-400/10 p-3 text-emerald-300">
               <BookOpen size={22} />
@@ -935,48 +1083,48 @@ export default function TemperatureHeatPage() {
           </div>
         </section>
 
-        <section className="mb-12 rounded-3xl border border-white/10 bg-[#111A2E] p-6 md:p-8">
+        <section id="quiz" className="mb-12 scroll-mt-28 rounded-3xl border border-white/10 bg-[#111A2E] p-6 md:p-8">
           <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
             <div>
               <p className="text-sm font-semibold text-emerald-300">CHECK YOUR KNOWLEDGE</p>
-              <h2 className="mt-2 text-2xl font-bold md:text-3xl">Temperature & Heat Quiz</h2>
-              <p className="mt-2 text-slate-400">
-                Answer all {questions.length} questions to see your score and explanations.
+              <h2 className="mt-2 text-2xl font-bold md:text-3xl">
+                Temperature &amp; Heat · {questions.length} questions
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-slate-400">
+                Answer every question. Your score and explanations appear after submission.
               </p>
             </div>
-            {submitted && (
-              <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-5 py-3">
+            <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-5 py-3">
                 <p className="text-sm text-slate-300">Your score</p>
                 <p className="text-2xl font-black text-emerald-300">
-                  {score} / {questions.length}
+                  {submitted ? `${score} / ${questions.length}` : `${answeredCount} / ${questions.length}`}
                 </p>
-              </div>
-            )}
+            </div>
+          </div>
+
+          <div className="mb-6 h-2 overflow-hidden rounded-full bg-white/10" role="progressbar" aria-label="Quiz questions answered" aria-valuemin={0} aria-valuemax={questions.length} aria-valuenow={answeredCount}>
+            <div className="h-full rounded-full bg-sky-400 transition-all" style={{ width: `${(answeredCount / questions.length) * 100}%` }} />
           </div>
 
           <div className="space-y-6">
             {questions.map((question, index) => (
-              <div
-                key={question.question}
-                className="rounded-2xl border border-white/10 bg-[#080D1B] p-5"
-              >
+              <LessonQuizQuestion key={question.question} number={index + 1}>
                 <p className="font-semibold leading-6">
-                  <span className="mr-2 text-orange-300">
-                    {String(index + 1).padStart(2, "0")}.
-                  </span>
                   {question.question}
                 </p>
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
                   {question.options.map((option, optionIndex) => {
                     const selected = answers[index] === optionIndex;
                     const correct = question.answer === optionIndex;
-                    let style =
-                      "border-white/10 bg-white/[0.03] hover:border-orange-300/50";
-                    if (selected) style = "border-orange-300 bg-orange-300/10";
-                    if (submitted && correct)
-                      style = "border-emerald-400 bg-emerald-400/10";
-                    if (submitted && selected && !correct)
-                      style = "border-rose-400 bg-rose-400/10";
+                    const optionState = submitted
+                      ? correct
+                        ? "correct"
+                        : selected
+                          ? "incorrect"
+                          : "muted"
+                      : selected
+                        ? "selected"
+                        : "default";
 
                     return (
                       <button
@@ -989,7 +1137,7 @@ export default function TemperatureHeatPage() {
                             [index]: optionIndex,
                           }))
                         }
-                        className={`flex items-center gap-3 rounded-xl border p-4 text-left text-sm transition disabled:cursor-default ${style}`}
+                        className={`${QUIZ_OPTION_BASE_CLASS} ${getQuizOptionClass(optionState)}`}
                       >
                         <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/5 text-xs font-bold">
                           {String.fromCharCode(65 + optionIndex)}
@@ -1011,7 +1159,7 @@ export default function TemperatureHeatPage() {
                     {question.explanation}
                   </p>
                 )}
-              </div>
+              </LessonQuizQuestion>
             ))}
           </div>
 
@@ -1021,8 +1169,8 @@ export default function TemperatureHeatPage() {
                 <button
                   type="button"
                   disabled={answeredCount !== questions.length}
-                  onClick={() => setSubmitted(true)}
-                  className="inline-flex items-center gap-2 rounded-xl bg-orange-300 px-5 py-3 font-bold text-slate-950 transition hover:bg-orange-200 disabled:cursor-not-allowed disabled:opacity-40"
+                  onClick={submitQuiz}
+                  className={QUIZ_SUBMIT_BUTTON_CLASS}
                 >
                   Submit quiz <ArrowRight size={18} />
                 </button>
@@ -1034,12 +1182,28 @@ export default function TemperatureHeatPage() {
               <button
                 type="button"
                 onClick={resetQuiz}
-                className="inline-flex items-center gap-2 rounded-xl border border-white/15 px-5 py-3 font-semibold transition hover:bg-white/5"
+                className={QUIZ_RETRY_BUTTON_CLASS}
               >
                 <RotateCcw size={18} /> Try again
               </button>
             )}
           </div>
+          <LessonQuizFeedback
+            saveState={saveState}
+            passed={passed}
+            message={saveMessage}
+            onRetry={() =>
+              void saveResult(
+                "temperature-heat",
+                questions.map((_, index) => answers[index] ?? -1),
+                questions.map((question) => ({
+                  question: question.question,
+                  choices: question.options,
+                  explanation: question.explanation,
+                }))
+              )
+            }
+          />
         </section>
 
         <footer className="flex flex-wrap items-center justify-between gap-4 border-t border-white/10 pt-6 text-sm text-slate-500">
@@ -1052,13 +1216,15 @@ export default function TemperatureHeatPage() {
               <ArrowLeft size={16} /> Previous: Fluids
             </Link>
             <Link
-              href="/#topics"
+              href="/dashboard"
               className="inline-flex items-center gap-2 text-sky-300 hover:text-sky-200"
             >
               All topics <ArrowRight size={16} />
             </Link>
           </div>
         </footer>
+        </div>
+        </div>
       </div>
     </main>
   );

@@ -14,6 +14,30 @@ import {
   BookOpen,
   XCircle,
 } from "lucide-react";
+import LessonQuizFeedback from "../LessonQuizFeedback";
+import LessonHeader from "../LessonHeader";
+import LessonNavigation from "../LessonNavigation";
+import LessonSidebar from "../LessonSidebar";
+import LessonProgressTracker from "../LessonProgressTracker";
+import LessonQuizQuestion, {
+  getQuizOptionClass,
+  QUIZ_OPTION_BASE_CLASS,
+  QUIZ_RETRY_BUTTON_CLASS,
+  QUIZ_SUBMIT_BUTTON_CLASS,
+} from "../LessonQuizQuestion";
+import { useLessonQuizResult } from "../useLessonQuizResult";
+
+const lessonSections = [
+  { id: "light-and-reflection", label: "Light & reflection" },
+  { id: "mirror-vocabulary", label: "Mirror vocabulary" },
+  { id: "sign-convention", label: "Sign convention" },
+  { id: "simulator", label: "Mirror simulator" },
+  { id: "mirror-types", label: "Mirror types" },
+  { id: "image-formation", label: "Image formation" },
+  { id: "mirror-equations", label: "Equations & examples" },
+  { id: "ray-tracing", label: "Refraction & lenses" },
+  { id: "quiz", label: "Quiz" },
+];
 
 /* ------------------------------------------------------------------ */
 /* Shared style helpers                                                */
@@ -217,6 +241,24 @@ const questions = [
     options: ["+4 cm", "+2 cm", "-4 cm", "-2 cm"],
     a: 2,
     why: "The mirror equation gives di = +20 cm. Then M = -di/do = -20/20 = -1. Thus hi = Mho = -1(4) = -4 cm. The image is inverted and the same size.",
+  },
+  {
+    q: "Light travels from air (n₁ = 1.00) into water (n₂ = 1.33) at 30° to the normal. Approximately what is the refracted angle?",
+    options: ["22°", "30°", "42°", "48°"],
+    a: 0,
+    why: "Snell's law gives sin θ₂ = (1.00/1.33) sin 30° ≈ 0.376, so θ₂ ≈ 22°. The ray bends toward the normal in water.",
+  },
+  {
+    q: "A converging lens has an object placed beyond 2F. What image is formed?",
+    options: ["Virtual, upright, enlarged", "Real, inverted, reduced between F and 2F", "Real, upright, same size", "Virtual, inverted, reduced"],
+    a: 1,
+    why: "For a converging lens with the object beyond 2F, the image is real, inverted, and reduced, between F and 2F on the opposite side.",
+  },
+  {
+    q: "Which statement describes the image formed by a camera's converging lens on its sensor?",
+    options: ["It is virtual and upright", "It is virtual and enlarged", "It is real and inverted", "It is always the same size as the object"],
+    a: 2,
+    why: "A camera sensor records light rays that actually converge on it, forming a real image. For a typical distant object this image is inverted and reduced.",
   },
 ];
 
@@ -1727,6 +1769,227 @@ function WorkedExample({ example }: { example: WorkedExampleData }) {
   );
 }
 
+function RefractionAndLensSimulator() {
+  const [incidentMedium, setIncidentMedium] = useState("air");
+  const [transmittedMedium, setTransmittedMedium] = useState("water");
+  const [incidentAngle, setIncidentAngle] = useState(35);
+  const [lensType, setLensType] = useState<"converging" | "diverging">("converging");
+  const [objectDistance, setObjectDistance] = useState(40);
+  const [focalMagnitude, setFocalMagnitude] = useState(15);
+  const refractiveIndices: Record<string, number> = {
+    air: 1,
+    water: 1.33,
+    glass: 1.5,
+  };
+  const n1 = refractiveIndices[incidentMedium];
+  const n2 = refractiveIndices[transmittedMedium];
+  const transmittedSine = (n1 / n2) * Math.sin((incidentAngle * Math.PI) / 180);
+  const totalInternalReflection = transmittedSine > 1;
+  const transmittedAngle = totalInternalReflection
+    ? null
+    : (Math.asin(transmittedSine) * 180) / Math.PI;
+  const incidentRadians = (incidentAngle * Math.PI) / 180;
+  const incidentPoint = {
+    x: 180 - 90 * Math.sin(incidentRadians),
+    y: 120 - 90 * Math.cos(incidentRadians),
+  };
+  const refractedPoint =
+    transmittedAngle === null
+      ? null
+      : {
+          x: 180 + 90 * Math.sin((transmittedAngle * Math.PI) / 180),
+          y: 120 + 90 * Math.cos((transmittedAngle * Math.PI) / 180),
+        };
+  const reflectedPoint = {
+    x: 180 + 90 * Math.sin(incidentRadians),
+    y: 120 - 90 * Math.cos(incidentRadians),
+  };
+
+  const focalLength =
+    lensType === "converging" ? focalMagnitude : -focalMagnitude;
+  const imageDistance =
+    Math.abs(objectDistance - focalLength) < 0.001
+      ? null
+      : (focalLength * objectDistance) / (objectDistance - focalLength);
+  const magnification =
+    imageDistance === null ? null : -imageDistance / objectDistance;
+  const lensScale =
+    100 / Math.max(objectDistance, Math.abs(imageDistance ?? 0), focalMagnitude);
+  const objectX = 180 - objectDistance * lensScale;
+  const imageX = 180 + (imageDistance ?? 0) * lensScale;
+  const imageHeight = Math.max(
+    -55,
+    Math.min(55, (magnification ?? 0) * 38)
+  );
+
+  return (
+    <section
+      id="ray-tracing"
+      className="mb-10 scroll-mt-28 rounded-3xl border border-cyan-400/20 bg-[#111A2E] p-6 md:p-8"
+    >
+      <p className="text-sm font-semibold text-cyan-300">INTERACTIVE OPTICS LAB</p>
+      <h2 className="mt-2 text-2xl font-bold md:text-3xl">
+        Refraction, Snell&apos;s Law, and Lenses
+      </h2>
+      <p className="mt-3 max-w-4xl leading-7 text-slate-400">
+        Angles are measured from the normal. Snell&apos;s law applies at a
+        stationary boundary between transparent media; the thin-lens model
+        below assumes paraxial rays and a thin lens. Use the existing mirror
+        simulator to trace reflection and compare it with refraction here.
+      </p>
+
+      <div className="mt-6 grid gap-5 xl:grid-cols-2">
+        <article className="rounded-2xl border border-white/10 bg-[#080D1B] p-5">
+          <h3 className="text-lg font-bold text-sky-300">Light ray tracing</h3>
+          <p className="mt-2 text-sm leading-6 text-slate-400">
+            Select the two media and vary the incident angle. The ray bends
+            toward the normal when entering a higher-index medium and away
+            from it when entering a lower-index medium.
+          </p>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <label className="text-sm text-slate-300">
+              Incident medium
+              <select
+                value={incidentMedium}
+                onChange={(event) => setIncidentMedium(event.target.value)}
+                className="mt-2 w-full rounded-xl border border-white/10 bg-[#111A2E] px-3 py-2"
+              >
+                <option value="air">Air (n = 1.00)</option>
+                <option value="water">Water (n = 1.33)</option>
+                <option value="glass">Glass (n = 1.50)</option>
+              </select>
+            </label>
+            <label className="text-sm text-slate-300">
+              Transmitted medium
+              <select
+                value={transmittedMedium}
+                onChange={(event) => setTransmittedMedium(event.target.value)}
+                className="mt-2 w-full rounded-xl border border-white/10 bg-[#111A2E] px-3 py-2"
+              >
+                <option value="air">Air (n = 1.00)</option>
+                <option value="water">Water (n = 1.33)</option>
+                <option value="glass">Glass (n = 1.50)</option>
+              </select>
+            </label>
+          </div>
+          <label htmlFor="incident-angle" className="mt-4 flex justify-between text-sm text-slate-300">
+            Incident angle θ₁ <span>{incidentAngle}°</span>
+          </label>
+          <input
+            id="incident-angle"
+            type="range"
+            min="0"
+            max="89"
+            value={incidentAngle}
+            onChange={(event) => setIncidentAngle(Number(event.target.value))}
+            className="mt-2 w-full accent-cyan-400"
+          />
+          <svg
+            viewBox="0 0 360 230"
+            role="img"
+            aria-label={`Ray diagram for light going from ${incidentMedium} to ${transmittedMedium}`}
+            className="mt-4 w-full rounded-xl bg-slate-950"
+          >
+            <rect x="0" y="0" width="360" height="120" fill="#17243A" />
+            <rect x="0" y="120" width="360" height="110" fill="#0F172A" />
+            <line x1="20" y1="120" x2="340" y2="120" stroke="#CBD5E1" strokeWidth="2" />
+            <line x1="180" y1="22" x2="180" y2="215" stroke="#64748B" strokeDasharray="5 5" />
+            <line x1={incidentPoint.x} y1={incidentPoint.y} x2="180" y2="120" stroke="#38BDF8" strokeWidth="4" />
+            {totalInternalReflection ? (
+              <line x1="180" y1="120" x2={reflectedPoint.x} y2={reflectedPoint.y} stroke="#FBBF24" strokeWidth="4" />
+            ) : (
+              refractedPoint && <line x1="180" y1="120" x2={refractedPoint.x} y2={refractedPoint.y} stroke="#34D399" strokeWidth="4" />
+            )}
+            <circle cx="180" cy="120" r="5" fill="#F8FAFC" />
+            <text x="12" y="20" fill="#CBD5E1" fontSize="12">{incidentMedium} · n₁ = {n1.toFixed(2)}</text>
+            <text x="12" y="145" fill="#CBD5E1" fontSize="12">{transmittedMedium} · n₂ = {n2.toFixed(2)}</text>
+            <text x="188" y="38" fill="#94A3B8" fontSize="11">normal</text>
+          </svg>
+          <p aria-live="polite" className="mt-3 rounded-xl bg-white/5 p-3 text-sm leading-6 text-slate-300">
+            {totalInternalReflection
+              ? `Total internal reflection: sin θ₂ = ${transmittedSine.toFixed(3)} exceeds 1, so no transmitted ray exists in this ideal model.`
+              : `Snell's law: n₁ sin θ₁ = n₂ sin θ₂. Refracted angle θ₂ ≈ ${transmittedAngle?.toFixed(1)}°.`}
+          </p>
+        </article>
+
+        <article className="rounded-2xl border border-white/10 bg-[#080D1B] p-5">
+          <h3 className="text-lg font-bold text-violet-300">Converging and diverging lens simulator</h3>
+          <p className="mt-2 text-sm leading-6 text-slate-400">
+            Use 1/f = 1/do + 1/di with a real object (do &gt; 0). A converging
+            (usually convex) lens has positive f; a diverging (usually concave)
+            lens has negative f.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2" role="group" aria-label="Lens type">
+            {(["converging", "diverging"] as const).map((type) => (
+              <button
+                key={type}
+                type="button"
+                aria-pressed={lensType === type}
+                onClick={() => setLensType(type)}
+                className={`rounded-lg border px-3 py-2 text-sm capitalize transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-300 ${
+                  lensType === type
+                    ? "border-violet-300/40 bg-violet-300/10 text-violet-200"
+                    : "border-white/10 text-slate-300 hover:bg-white/5"
+                }`}
+              >
+                {type === "converging"
+                  ? "Converging · usually convex"
+                  : "Diverging · usually concave"}
+              </button>
+            ))}
+          </div>
+          <label htmlFor="lens-object-distance" className="mt-4 flex justify-between text-sm text-slate-300">
+            Object distance do <span>{objectDistance} cm</span>
+          </label>
+          <input id="lens-object-distance" type="range" min="5" max="80" value={objectDistance} onChange={(event) => setObjectDistance(Number(event.target.value))} className="mt-2 w-full accent-violet-400" />
+          <label htmlFor="lens-focal-length" className="mt-4 flex justify-between text-sm text-slate-300">
+            Focal-length magnitude |f| <span>{focalMagnitude} cm</span>
+          </label>
+          <input id="lens-focal-length" type="range" min="5" max="30" value={focalMagnitude} onChange={(event) => setFocalMagnitude(Number(event.target.value))} className="mt-2 w-full accent-violet-400" />
+          <svg viewBox="0 0 360 190" role="img" aria-label={`Image diagram for a ${lensType} lens`} className="mt-4 w-full rounded-xl bg-slate-950">
+            <line x1="18" y1="145" x2="342" y2="145" stroke="#64748B" />
+            <path
+              d={
+                lensType === "converging"
+                  ? "M180 35 Q145 95 180 155 Q215 95 180 35Z"
+                  : "M145 35 Q174 95 145 155 Q180 140 215 155 Q186 95 215 35 Q180 50 145 35Z"
+              }
+              fill="#38BDF8"
+              fillOpacity=".15"
+              stroke="#7DD3FC"
+              strokeWidth="3"
+            />
+            <line x1={objectX} y1="145" x2={objectX} y2="105" stroke="#38BDF8" strokeWidth="4" markerEnd="url(#lensObjectArrow)" />
+            {imageDistance !== null && (
+              <line x1={imageX} y1="145" x2={imageX} y2={145 - imageHeight} stroke="#FBBF24" strokeWidth="4" strokeDasharray={imageDistance < 0 ? "6 4" : undefined} markerEnd="url(#lensImageArrow)" />
+            )}
+            <defs>
+              <marker id="lensObjectArrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#38BDF8" /></marker>
+              <marker id="lensImageArrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#FBBF24" /></marker>
+            </defs>
+            <text x={objectX} y="170" fill="#7DD3FC" fontSize="11" textAnchor="middle">Object</text>
+            <text x="180" y="25" fill="#7DD3FC" fontSize="11" textAnchor="middle">Lens</text>
+            {imageDistance !== null && <text x={imageX} y="170" fill="#FCD34D" fontSize="11" textAnchor="middle">Image</text>}
+          </svg>
+          <div aria-live="polite" className="mt-3 grid gap-2 sm:grid-cols-2">
+            <p className="rounded-lg bg-white/5 p-3 text-sm text-slate-300">
+              Image distance: {imageDistance === null ? "at infinity (do = f)" : `${fmt(imageDistance)} cm (${imageDistance > 0 ? "real" : "virtual"})`}
+            </p>
+            <p className="rounded-lg bg-white/5 p-3 text-sm text-slate-300">
+              Magnification: {magnification === null ? "undefined" : `${fmt(magnification, 3)} (${magnification > 0 ? "upright" : "inverted"})`}
+            </p>
+          </div>
+          <p className="mt-3 text-sm leading-6 text-slate-400">
+            Cameras use a converging lens to form a real image on a sensor. A
+            simple magnifier uses a converging lens with the object inside f,
+            producing a virtual, upright, enlarged image.
+          </p>
+        </article>
+      </div>
+    </section>
+  );
+}
+
 /* ------------------------------------------------------------------ */
 /* Page                                                                */
 /* ------------------------------------------------------------------ */
@@ -1735,6 +1998,13 @@ export default function OpticsPage() {
   const [attempt, setAttempt] = useState(0);
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [submitted, setSubmitted] = useState(false);
+  const {
+    saveState,
+    saveMessage,
+    passed,
+    saveResult,
+    resetResult,
+  } = useLessonQuizResult();
 
   // Option order changes on every retake so students cannot memorize positions.
   const quizQuestions = useMemo(() => shuffleQuestionOptions(attempt), [attempt]);
@@ -1750,39 +2020,52 @@ export default function OpticsPage() {
   const resetQuiz = () => {
     setAnswers({});
     setSubmitted(false);
+    resetResult();
     setAttempt((value) => value + 1);
     document.getElementById("quiz")?.scrollIntoView({ behavior: "smooth" });
   };
 
-  return (
-    <main className="min-h-screen bg-[#080D1B] text-[#F8FAFC]">
-      <nav className="sticky top-0 z-30 border-b border-white/10 bg-[#080D1B]/90 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4">
-          <Link href="/" className={`text-xl font-black ${FOCUS}`}>
-            Calph<span className="text-sky-400">++</span>
-          </Link>
-          <Link
-            href="/#topics"
-            className={`flex items-center gap-2 text-sm text-slate-300 hover:text-sky-400 ${FOCUS}`}
-          >
-            <ArrowLeft size={16} /> All topics
-          </Link>
-        </div>
-      </nav>
+  const submitQuiz = () => {
+    setSubmitted(true);
+    void saveResult(
+      "optics",
+      quizQuestions.map((_, index) => answers[index] ?? -1),
+      quizQuestions.map((question, index) => ({
+        question: question.q,
+        choices: question.options,
+        explanation: question.why,
+        optionOrder: question.options.map((option) =>
+          questions[index].options.indexOf(option)
+        ),
+      }))
+    );
+  };
 
-      <div className="mx-auto max-w-7xl px-5 py-10 md:py-16">
-        <header className="mb-12">
-          <p className="mb-4 flex items-center gap-2 text-sm font-semibold text-amber-300">
-            <Eye size={18} /> PHYSICS MODULE 05
-          </p>
-          <h1 className="text-4xl font-black sm:text-6xl">
-            Light <span className="text-amber-300">& Reflection</span>
-          </h1>
-          <p className="mt-5 max-w-3xl leading-7 text-slate-400">
+  return (
+    <main className="flex h-dvh flex-col overflow-hidden bg-[#080D1B] text-[#F8FAFC]">
+      <LessonNavigation />
+
+      <div className="grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] md:grid-rows-1 md:grid-cols-[250px_minmax(0,1fr)]">
+        <LessonSidebar sections={lessonSections} accentClass="text-amber-300" />
+        <div id="lesson-main-scroll" className="min-w-0 overflow-y-auto overscroll-contain px-4 py-6 sm:px-6 lg:px-10">
+        <div className="mx-auto w-full max-w-[1600px]">
+        <LessonProgressTracker lessonSlug="optics" />
+        <LessonHeader
+          module="Physics module 05"
+          icon={<Eye size={18} />}
+          accentClass="text-amber-300"
+          title={
+            <>
+              Light <span className="text-amber-300">&amp; Reflection</span>
+            </>
+          }
+          description={
+            <>
             Explore electromagnetic waves, the laws of reflection, plane and
             spherical mirrors, image formation, and mirror calculations.
-          </p>
-        </header>
+            </>
+          }
+        />
 
         <section className="mb-10 grid gap-4 md:grid-cols-3">
           {[
@@ -1802,7 +2085,7 @@ export default function OpticsPage() {
           ))}
         </section>
 
-        <section className="mb-10 grid gap-6 lg:grid-cols-2">
+        <section id="light-and-reflection" className="mb-10 scroll-mt-28 grid gap-6 lg:grid-cols-2">
           <article className="rounded-3xl border border-white/10 bg-[#111A2E] p-6 md:p-8">
             <div className="mb-4 flex items-center gap-3 text-amber-300">
               <Waves size={23} />
@@ -1856,7 +2139,7 @@ export default function OpticsPage() {
           </article>
         </section>
 
-        <section className="mb-10 rounded-3xl border border-white/10 bg-[#111A2E] p-6 md:p-8">
+        <section id="mirror-vocabulary" className="mb-10 scroll-mt-28 rounded-3xl border border-white/10 bg-[#111A2E] p-6 md:p-8">
           <div className="mb-4 flex items-center gap-3 text-amber-300">
             <BookOpen size={23} />
             <span className="text-sm font-semibold">LESSON 03</span>
@@ -1890,7 +2173,7 @@ export default function OpticsPage() {
           </div>
         </section>
 
-        <section className="mb-10 rounded-3xl border border-white/10 bg-[#111A2E] p-6 md:p-8">
+        <section id="sign-convention" className="mb-10 scroll-mt-28 rounded-3xl border border-white/10 bg-[#111A2E] p-6 md:p-8">
           <div className="mb-4 flex items-center gap-3 text-amber-300">
             <Calculator size={23} />
             <span className="text-sm font-semibold">SIGN CONVENTION</span>
@@ -1911,7 +2194,7 @@ export default function OpticsPage() {
 
         <MirrorImageSimulator />
 
-        <section className="mb-10 grid gap-6 lg:grid-cols-3">
+        <section id="mirror-types" className="mb-10 scroll-mt-28 grid gap-6 lg:grid-cols-3">
           <article className="rounded-3xl border border-white/10 bg-[#111A2E] p-6">
             <h2 className="text-xl font-bold text-amber-300">Plane mirrors</h2>
             <p className="mt-3 text-sm leading-7 text-slate-300">
@@ -1948,7 +2231,7 @@ export default function OpticsPage() {
           </article>
         </section>
 
-        <section className="mb-10 rounded-3xl border border-white/10 bg-[#111A2E] p-6 md:p-8">
+        <section id="image-formation" className="mb-10 scroll-mt-28 rounded-3xl border border-white/10 bg-[#111A2E] p-6 md:p-8">
           <div className="mb-5 flex items-center gap-3 text-amber-300">
             <BookOpen size={23} />
             <p className="text-sm font-semibold">IMAGE FORMATION</p>
@@ -2025,7 +2308,7 @@ export default function OpticsPage() {
           </div>
         </section>
 
-        <section className="mb-10 rounded-3xl border border-white/10 bg-[#111A2E] p-6 md:p-8">
+        <section id="mirror-equations" className="mb-10 scroll-mt-28 rounded-3xl border border-white/10 bg-[#111A2E] p-6 md:p-8">
           <div className="mb-5 flex items-center gap-3 text-amber-300">
             <Calculator size={23} />
             <p className="text-sm font-semibold">FORMULAS AND CALCULATIONS</p>
@@ -2066,9 +2349,11 @@ export default function OpticsPage() {
           {workedExamples.map((example) => (
             <WorkedExample key={example.title} example={example} />
           ))}
-        </section>
+          </section>
 
-        <section
+          <RefractionAndLensSimulator />
+
+          <section
           id="quiz"
           className="scroll-mt-24 rounded-3xl border border-white/10 bg-[#111A2E] p-6 md:p-8"
         >
@@ -2077,33 +2362,27 @@ export default function OpticsPage() {
               <p className="text-sm font-semibold text-emerald-300">
                 CHECK YOUR KNOWLEDGE
               </p>
-              <h2 className="mt-2 text-2xl font-bold">Optics Quiz</h2>
-              <p className="mt-2 text-sm text-slate-400">
-                20 multiple-choice questions · Questions 16–20 require calculations
+              <h2 className="mt-2 text-2xl font-bold md:text-3xl">
+                Light &amp; Reflection · {quizQuestions.length} questions
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-slate-400">
+                Answer every question. Your score and explanations appear after submission.
               </p>
             </div>
-            {submitted && (
-              <div className="text-right">
-                <p className="text-3xl font-black text-emerald-300">
-                  {score} / {quizQuestions.length}
-                </p>
-                <p className="text-sm text-slate-400">
-                  {Math.round((score / quizQuestions.length) * 100)}%
-                </p>
-              </div>
-            )}
+            <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-5 py-3">
+              <p className="text-sm text-slate-300">Your score</p>
+              <p className="text-2xl font-black text-emerald-300">
+                {submitted ? `${score} / ${quizQuestions.length}` : `${answeredCount} / ${quizQuestions.length}`}
+              </p>
+            </div>
+          </div>
+
+          <div className="mb-6 h-2 overflow-hidden rounded-full bg-white/10" role="progressbar" aria-label="Quiz questions answered" aria-valuemin={0} aria-valuemax={quizQuestions.length} aria-valuenow={answeredCount}>
+            <div className="h-full rounded-full bg-sky-400 transition-all" style={{ width: `${(answeredCount / quizQuestions.length) * 100}%` }} />
           </div>
 
           <div className="mb-6 rounded-xl bg-[#080D1B] p-4 text-sm leading-6 text-slate-400">
-            Choose one answer for every question. Submit the quiz to see your
-            score and explanations. For calculation questions, check the
-            formula, substitution, sign, and unit. Answer positions change each
-            time you retake the quiz.
-            {!submitted && (
-              <span className="mt-1 block font-semibold text-slate-300">
-                Answered: {answeredCount} / {quizQuestions.length}
-              </span>
-            )}
+            Choose one answer for every question. Answer positions change each time you retake the quiz.
           </div>
 
           {submitted && (
@@ -2138,16 +2417,16 @@ export default function OpticsPage() {
             {quizQuestions.map((question, index) => {
               const isMissed = submitted && answers[index] !== question.a;
               return (
-                <div
-                  key={question.q}
-                  id={`quiz-q-${index + 1}`}
-                  className={`scroll-mt-24 rounded-2xl border bg-[#080D1B] p-5 ${
-                    isMissed ? "border-rose-400/50" : "border-white/10"
-                  }`}
-                >
+                <LessonQuizQuestion key={question.q} number={index + 1}>
+                  <div
+                    id={`quiz-q-${index + 1}`}
+                    className={`scroll-mt-24 rounded-xl border p-4 ${
+                      isMissed ? "border-rose-400/50 bg-rose-400/5" : "border-white/10 bg-white/[0.02]"
+                    }`}
+                  >
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <p id={`quiz-label-${index}`} className="font-semibold leading-7">
-                      {index + 1}. {question.q}
+                      {question.q}
                     </p>
                     <div className="flex flex-wrap gap-2">
                       {isMissed && (
@@ -2172,18 +2451,15 @@ export default function OpticsPage() {
                       const selected = answers[index] === optionIndex;
                       const correct = question.a === optionIndex;
 
-                      let optionClass =
-                        "border-white/10 hover:border-amber-300/50";
-
-                      if (selected) {
-                        optionClass = "border-amber-300 bg-amber-300/10";
-                      }
-
-                      if (submitted && correct) {
-                        optionClass = "border-emerald-400 bg-emerald-400/10";
-                      } else if (submitted && selected && !correct) {
-                        optionClass = "border-rose-400 bg-rose-400/10";
-                      }
+                      const optionState = submitted
+                        ? correct
+                          ? "correct"
+                          : selected
+                            ? "incorrect"
+                            : "muted"
+                        : selected
+                          ? "selected"
+                          : "default";
 
                       return (
                         <button
@@ -2198,7 +2474,7 @@ export default function OpticsPage() {
                               [index]: optionIndex,
                             }))
                           }
-                          className={`rounded-xl border p-4 text-left text-sm leading-6 transition ${optionClass} ${FOCUS} disabled:cursor-default`}
+                          className={`${QUIZ_OPTION_BASE_CLASS} ${getQuizOptionClass(optionState)} ${FOCUS}`}
                         >
                           <span className="mr-2 font-bold text-slate-400">
                             {String.fromCharCode(65 + optionIndex)}.
@@ -2228,7 +2504,6 @@ export default function OpticsPage() {
                       );
                     })}
                   </div>
-
                   {submitted && (
                     <div className="mt-4 rounded-xl bg-white/[0.03] p-4">
                       <p className="text-sm font-semibold text-emerald-300">
@@ -2239,7 +2514,8 @@ export default function OpticsPage() {
                       </p>
                     </div>
                   )}
-                </div>
+                  </div>
+                  </LessonQuizQuestion>
               );
             })}
           </div>
@@ -2249,8 +2525,8 @@ export default function OpticsPage() {
               <button
                 type="button"
                 disabled={answeredCount !== quizQuestions.length}
-                onClick={() => setSubmitted(true)}
-                className={`rounded-xl bg-amber-300 px-5 py-3 font-bold text-slate-950 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-40 ${FOCUS}`}
+                onClick={submitQuiz}
+                className={`${QUIZ_SUBMIT_BUTTON_CLASS} ${FOCUS}`}
               >
                 Submit quiz <ArrowRight size={16} className="ml-1 inline" />
               </button>
@@ -2258,13 +2534,32 @@ export default function OpticsPage() {
               <button
                 type="button"
                 onClick={resetQuiz}
-                className={`rounded-xl border border-white/15 px-5 py-3 font-semibold transition hover:border-amber-300/60 ${FOCUS}`}
+                className={`${QUIZ_RETRY_BUTTON_CLASS} ${FOCUS}`}
               >
                 <RotateCcw size={16} className="mr-2 inline" />
                 Try again
               </button>
             )}
           </div>
+          <LessonQuizFeedback
+            saveState={saveState}
+            passed={passed}
+            message={saveMessage}
+            onRetry={() =>
+              void saveResult(
+                "optics",
+                quizQuestions.map((_, index) => answers[index] ?? -1),
+                quizQuestions.map((question, index) => ({
+                  question: question.q,
+                  choices: question.options,
+                  explanation: question.why,
+                  optionOrder: question.options.map((option) =>
+                    questions[index].options.indexOf(option)
+                  ),
+                }))
+              )
+            }
+          />
         </section>
 
         <footer className="mt-8 flex flex-wrap justify-between gap-4 border-t border-white/10 pt-6 text-sm">
@@ -2276,12 +2571,14 @@ export default function OpticsPage() {
             Previous: Waves & Sound
           </Link>
           <Link
-            href="/#topics"
+            href="/dashboard"
             className={`text-sky-300 hover:text-sky-200 ${FOCUS}`}
           >
             All topics <ArrowRight size={16} className="ml-2 inline" />
           </Link>
         </footer>
+        </div>
+        </div>
       </div>
     </main>
   );

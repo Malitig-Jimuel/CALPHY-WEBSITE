@@ -11,76 +11,41 @@ import {
   LogOut,
   ArrowRight,
   CheckCircle2,
-  Clock3,
   Flame,
   Lightbulb,
   Target,
   Zap,
   Trophy,
   History,
+  ChevronRight,
 } from "lucide-react";
 import DashboardChallenge from "./DashboardChallenge";
+import LessonSidebar from "../lessons/LessonSidebar";
 
 const lessons = [
   {
-    number: "01",
     title: "Measurements & Vectors",
-    description: "SI units, measurements, and vector operations.",
     slug: "measurements-vectors",
-    href: "/lessons/measurements-vectors",
-    icon: "ruler",
-    color: "text-sky-400",
-    background: "bg-sky-400/10",
   },
   {
-    number: "02",
     title: "Fluids",
-    description: "Pressure, buoyancy, and fluid behavior.",
     slug: "fluids",
-    href: "/lessons/fluids",
-    icon: "waves",
-    color: "text-cyan-400",
-    background: "bg-cyan-400/10",
   },
   {
-    number: "03",
     title: "Temperature & Heat",
-    description: "Temperature, heat transfer, and thermal energy.",
     slug: "temperature-heat",
-    href: "/lessons/temperature-heat",
-    icon: "thermometer",
-    color: "text-orange-400",
-    background: "bg-orange-400/10",
   },
   {
-    number: "04",
     title: "Waves & Sound",
-    description: "Wave motion, frequency, and sound.",
     slug: "waves-sound",
-    href: "/lessons/waves-sound",
-    icon: "audio",
-    color: "text-violet-400",
-    background: "bg-violet-400/10",
   },
   {
-    number: "05",
     title: "Light & Reflection",
-    description: "Mirrors, reflection, and image formation.",
     slug: "optics",
-    href: "/lessons/optics",
-    icon: "light",
-    color: "text-yellow-400",
-    background: "bg-yellow-400/10",
   },
   {
-    number: "06",
     title: "Electric Forces & Field",
-    description: "Electric charges, forces, and electric fields.",
     slug: "electricity",
-    href: "/lessons/electricity",
-    icon: "zap",
-    color: "text-emerald-400",
-    background: "bg-emerald-400/10",
   },
 ];
 
@@ -164,6 +129,26 @@ async function DashboardContent() {
   const progressPercent = Math.round(
     (completedCount / lessons.length) * 100
   );
+  const mostRecentlyAccessedUnfinishedLesson = user.lessonProgress
+    .filter((progress) => !progress.completed)
+    .sort(
+      (left, right) =>
+        right.lastAccessedAt.getTime() - left.lastAccessedAt.getTime()
+    )[0];
+  const nextLesson =
+    lessons.find(
+      (lesson) =>
+        lesson.slug === mostRecentlyAccessedUnfinishedLesson?.lessonSlug
+    ) ?? lessons.find((lesson) => !completedSlugs.has(lesson.slug));
+  const learningAction = nextLesson
+    ? {
+        label: user.lessonProgress.length > 0 ? "Continue Learning" : "Start Learning",
+        href: `/lessons/${nextLesson.slug}`,
+      }
+    : {
+        label: "Review Lessons",
+        href: `/lessons/${lessons[0].slug}`,
+      };
 
   const recentAverage =
     recentAttempts.length > 0
@@ -181,8 +166,6 @@ async function DashboardContent() {
         )
       : null;
 
-  const latestAttempt = recentAttempts[0];
-
   const formatDate = (date: Date) =>
     new Intl.DateTimeFormat("en-PH", {
       month: "short",
@@ -193,11 +176,15 @@ async function DashboardContent() {
   const getQuizName = (quizId: string) =>
     quizId === "dashboard-physics"
       ? "Quick Physics Challenge"
-      : quizId.replace(/[-_]/g, " ");
+      : lessons.find((lesson) => lesson.slug === quizId)?.title ??
+        quizId.replace(/[-_]/g, " ");
 
   return (
-    <main className="min-h-screen bg-[#080D1B] px-4 py-6 text-slate-100 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-7xl">
+    <main className="flex h-dvh flex-col overflow-hidden bg-[#080D1B] text-slate-100">
+      <div className="grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] md:grid-rows-1 md:grid-cols-[250px_minmax(0,1fr)]">
+        <LessonSidebar />
+        <div className="min-w-0 overflow-y-auto overscroll-contain px-4 py-6 sm:px-6 lg:px-10">
+        <div className="mx-auto w-full max-w-[1600px]">
         {/* Navigation */}
         <header className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 pb-5">
           <Link href="/" className="flex items-center gap-3">
@@ -211,7 +198,7 @@ async function DashboardContent() {
 
           <div className="flex items-center gap-3">
             <Link
-              href="/#topics"
+              href="/"
               className="hidden rounded-xl px-4 py-2.5 text-sm text-slate-300 transition hover:bg-white/5 hover:text-white sm:block"
             >
               Home
@@ -255,20 +242,13 @@ async function DashboardContent() {
 
               <div className="mt-7 flex flex-wrap gap-3">
                 <Link
-                  href="/lessons/measurements-vectors"
+                  href={learningAction.href}
                   className="inline-flex items-center gap-2 rounded-xl bg-sky-400 px-5 py-3 font-bold text-slate-950 transition hover:bg-sky-300"
                 >
-                  Continue learning
+                  {learningAction.label}
                   <ArrowRight size={18} />
                 </Link>
 
-                <Link
-                  href="#lessons"
-                  className="inline-flex items-center gap-2 rounded-xl border border-white/15 px-5 py-3 font-semibold text-slate-200 transition hover:bg-white/5"
-                >
-                  <BookOpen size={18} />
-                  Explore modules
-                </Link>
               </div>
             </div>
 
@@ -296,41 +276,53 @@ async function DashboardContent() {
             <p className="mt-1 text-sm text-slate-400">Physics modules</p>
           </div>
 
-          <div className="rounded-2xl border border-white/10 bg-[#10182B] p-5 transition hover:border-emerald-400/30">
+          <Link
+            href="/dashboard/progress"
+            aria-label={`View module progress: ${completedCount} of ${lessons.length} completed`}
+            className="group rounded-2xl border border-white/10 bg-[#10182B] p-5 transition hover:border-emerald-400/30 hover:bg-[#131e34] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300"
+          >
             <div className="flex items-center justify-between">
               <div className="rounded-xl bg-emerald-400/10 p-3 text-emerald-400">
                 <CheckCircle2 size={22} />
               </div>
-              <span className="text-xs font-medium text-slate-500">
-                COMPLETED
+              <span className="flex items-center gap-1 text-xs font-medium text-slate-500 group-hover:text-emerald-300">
+                COMPLETED <ChevronRight size={14} />
               </span>
             </div>
             <p className="mt-5 text-3xl font-black">
               {completedCount} / {lessons.length}
             </p>
             <p className="mt-1 text-sm text-slate-400">Completed modules</p>
-          </div>
+          </Link>
 
-          <div className="rounded-2xl border border-white/10 bg-[#10182B] p-5 transition hover:border-violet-400/30">
+          <Link
+            href="/dashboard/quiz-attempts"
+            aria-label={`View ${totalAttempts} saved quiz attempts`}
+            className="group rounded-2xl border border-white/10 bg-[#10182B] p-5 transition hover:border-violet-400/30 hover:bg-[#131e34] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-300"
+          >
             <div className="flex items-center justify-between">
               <div className="rounded-xl bg-violet-400/10 p-3 text-violet-400">
                 <Target size={22} />
               </div>
-              <span className="text-xs font-medium text-slate-500">
-                QUIZZES
+              <span className="flex items-center gap-1 text-xs font-medium text-slate-500 group-hover:text-violet-300">
+                QUIZZES <ChevronRight size={14} />
               </span>
             </div>
             <p className="mt-5 text-3xl font-black">{totalAttempts}</p>
             <p className="mt-1 text-sm text-slate-400">Quiz attempts saved</p>
-          </div>
+          </Link>
 
-          <div className="rounded-2xl border border-white/10 bg-[#10182B] p-5 transition hover:border-amber-400/30">
+          <Link
+            href="/dashboard/performance"
+            aria-label={`View quiz performance analytics, recent average ${recentAverage === null ? "not available" : `${recentAverage}%`}`}
+            className="group rounded-2xl border border-white/10 bg-[#10182B] p-5 transition hover:border-amber-400/30 hover:bg-[#131e34] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-300"
+          >
             <div className="flex items-center justify-between">
               <div className="rounded-xl bg-amber-400/10 p-3 text-amber-300">
                 <Trophy size={22} />
               </div>
-              <span className="text-xs font-medium text-slate-500">
-                RECENT AVERAGE
+              <span className="flex items-center gap-1 text-xs font-medium text-slate-500 group-hover:text-amber-300">
+                RECENT AVERAGE <ChevronRight size={14} />
               </span>
             </div>
             <p className="mt-5 text-3xl font-black">
@@ -343,7 +335,7 @@ async function DashboardContent() {
                     recentAttempts.length === 1 ? "attempt" : "attempts"
                   }`}
             </p>
-          </div>
+          </Link>
         </section>
 
         {/* Progress */}
@@ -352,8 +344,7 @@ async function DashboardContent() {
             <div>
               <h2 className="text-xl font-bold">Your learning journey</h2>
               <p className="mt-2 text-sm leading-6 text-slate-400">
-                Your progress is based on completed modules saved to your
-                account.
+                Pass a lesson quiz with at least 60% to complete its module.
               </p>
             </div>
             <div className="rounded-xl bg-sky-400/10 p-3 text-sky-400">
@@ -383,84 +374,9 @@ async function DashboardContent() {
           </div>
 
           <p className="mt-3 text-xs text-slate-500">
-            Complete a module using its lesson completion control to update
-            your progress.
+            Quiz results are saved to your account and update this progress
+            automatically.
           </p>
-        </section>
-
-        {/* Lessons */}
-        <section id="lessons" className="mt-12 scroll-mt-8">
-          <div className="flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-sky-400">
-                Explore and learn
-              </p>
-              <h2 className="mt-2 text-2xl font-black sm:text-3xl">
-                Your Physics Modules
-              </h2>
-              <p className="mt-2 text-sm text-slate-400">
-                Choose a topic to begin or continue studying.
-              </p>
-            </div>
-
-            <span className="rounded-full border border-white/10 px-3 py-1.5 text-xs text-slate-400">
-              {completedCount} of 6 completed
-            </span>
-          </div>
-
-          <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {lessons.map((lesson) => {
-              const isCompleted = completedSlugs.has(lesson.slug);
-
-              return (
-                <Link
-                  key={lesson.number}
-                  href={lesson.href}
-                  className="group rounded-2xl border border-white/10 bg-[#10182B] p-5 transition duration-200 hover:-translate-y-1 hover:border-sky-400/40 hover:bg-[#131F36]"
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div
-                      className={`rounded-xl p-3 ${lesson.background} ${lesson.color}`}
-                    >
-                      {lesson.icon === "ruler" && <BookOpen size={23} />}
-                      {lesson.icon === "waves" && <Clock3 size={23} />}
-                      {lesson.icon === "thermometer" && <Flame size={23} />}
-                      {lesson.icon === "audio" && <Atom size={23} />}
-                      {lesson.icon === "light" && <Lightbulb size={23} />}
-                      {lesson.icon === "zap" && <Zap size={23} />}
-                    </div>
-
-                    {isCompleted ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-400/10 px-2.5 py-1 text-xs font-semibold text-emerald-300">
-                        <CheckCircle2 size={14} />
-                        Completed
-                      </span>
-                    ) : (
-                      <span className="text-sm font-bold tracking-widest text-slate-600">
-                        {lesson.number}
-                      </span>
-                    )}
-                  </div>
-
-                  <h3 className="mt-5 text-lg font-bold transition group-hover:text-sky-300">
-                    {lesson.title}
-                  </h3>
-
-                  <p className="mt-2 min-h-12 text-sm leading-6 text-slate-400">
-                    {lesson.description}
-                  </p>
-
-                  <div className="mt-5 flex items-center gap-2 text-sm font-semibold text-sky-400">
-                    {isCompleted ? "Review module" : "Open module"}
-                    <ArrowRight
-                      size={16}
-                      className="transition group-hover:translate-x-1"
-                    />
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
         </section>
 
         {/* Formula and study tip */}
@@ -547,17 +463,28 @@ async function DashboardContent() {
 
         {/* Recent quiz history */}
         <section className="mt-12">
-          <div className="mb-5 flex items-center gap-3">
-            <div className="rounded-xl bg-violet-400/10 p-3 text-violet-300">
-              <History size={22} />
-            </div>
-            <div>
-              <h2 className="text-2xl font-black">Recent Quiz History</h2>
-              <p className="mt-1 text-sm text-slate-400">
-                Your latest saved quiz results.
-              </p>
-            </div>
-          </div>
+          <Link
+            href="/dashboard/quiz-history"
+            className="group mb-5 flex items-center justify-between gap-3 rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-violet-300"
+            aria-label="View complete recent quiz history"
+          >
+            <span className="flex items-center gap-3">
+              <span className="rounded-xl bg-violet-400/10 p-3 text-violet-300">
+                <History size={22} />
+              </span>
+              <span>
+                <span className="block text-2xl font-black">
+                  Recent Quiz History
+                </span>
+                <span className="mt-1 block text-sm text-slate-400">
+                  Your latest lesson and challenge quiz results.
+                </span>
+              </span>
+            </span>
+            <span className="inline-flex items-center gap-1 text-sm font-semibold text-violet-300 opacity-80 transition group-hover:opacity-100">
+              View all <ChevronRight size={17} />
+            </span>
+          </Link>
 
           <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#10182B]">
             {recentAttempts.length === 0 ? (
@@ -589,9 +516,10 @@ async function DashboardContent() {
                       : 0;
 
                   return (
-                    <div
+                    <Link
                       key={attempt.id}
-                      className="flex flex-wrap items-center justify-between gap-4 p-5 transition hover:bg-white/[0.02] sm:px-6"
+                      href={`/dashboard/quiz-history/${encodeURIComponent(attempt.id)}`}
+                      className="flex flex-wrap items-center justify-between gap-4 p-5 transition hover:bg-white/[0.02] focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-sky-300 sm:px-6"
                     >
                       <div className="flex min-w-0 items-center gap-4">
                         <div className="rounded-xl bg-sky-400/10 p-3 text-sky-300">
@@ -632,7 +560,7 @@ async function DashboardContent() {
                               : "Review topics"}
                         </span>
                       </div>
-                    </div>
+                    </Link>
                   );
                 })}
               </div>
@@ -656,7 +584,9 @@ async function DashboardContent() {
             Learn physics. Explore ideas. Understand the world.
           </p>
         </footer>
-      </div>
+          </div>
+          </div>
+        </div>
     </main>
   );
 }
