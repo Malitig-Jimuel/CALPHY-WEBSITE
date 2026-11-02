@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { revalidateQuizPages } from "@/lib/revalidateQuizPages";
 
 const PASS_PERCENT = 60;
 
@@ -12,10 +13,12 @@ const lessonQuizzes: Record<string, number[]> = {
   "temperature-heat": [
     1, 2, 1, 3, 0, 2, 1, 2, 3, 0, 2, 0, 2, 2, 1, 3, 0, 3, 1, 0,
   ],
-  "waves-sound": [1, 1, 2, 0, 1, 2, 3, 0, 2, 3],
-  optics: [1, 2, 3, 0, 1, 2, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 0, 1, 2],
+  "waves-sound": [
+    1, 1, 2, 0, 1, 2, 3, 0, 2, 3, 1, 2, 0, 1, 2, 3, 1, 0, 2, 3,
+  ],
+  optics: [1, 2, 3, 0, 1, 2, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2],
   electricity: [
-    1, 2, 0, 1, 2, 0, 1, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 1, 3,
+    1, 2, 0, 1, 2, 0, 1, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0,
   ],
 };
 
@@ -243,6 +246,8 @@ export async function POST(request: Request) {
       });
       moduleCompleted = true;
     }
+
+    revalidateQuizPages();
 
     return NextResponse.json(
       {

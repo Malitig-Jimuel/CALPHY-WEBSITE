@@ -242,24 +242,6 @@ const questions = [
     a: 2,
     why: "The mirror equation gives di = +20 cm. Then M = -di/do = -20/20 = -1. Thus hi = Mho = -1(4) = -4 cm. The image is inverted and the same size.",
   },
-  {
-    q: "Light travels from air (n₁ = 1.00) into water (n₂ = 1.33) at 30° to the normal. Approximately what is the refracted angle?",
-    options: ["22°", "30°", "42°", "48°"],
-    a: 0,
-    why: "Snell's law gives sin θ₂ = (1.00/1.33) sin 30° ≈ 0.376, so θ₂ ≈ 22°. The ray bends toward the normal in water.",
-  },
-  {
-    q: "A converging lens has an object placed beyond 2F. What image is formed?",
-    options: ["Virtual, upright, enlarged", "Real, inverted, reduced between F and 2F", "Real, upright, same size", "Virtual, inverted, reduced"],
-    a: 1,
-    why: "For a converging lens with the object beyond 2F, the image is real, inverted, and reduced, between F and 2F on the opposite side.",
-  },
-  {
-    q: "Which statement describes the image formed by a camera's converging lens on its sensor?",
-    options: ["It is virtual and upright", "It is virtual and enlarged", "It is real and inverted", "It is always the same size as the object"],
-    a: 2,
-    why: "A camera sensor records light rays that actually converge on it, forming a real image. For a typical distant object this image is inverted and reduced.",
-  },
 ];
 
 type Question = (typeof questions)[number];

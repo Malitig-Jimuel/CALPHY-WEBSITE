@@ -257,24 +257,6 @@ const questions: Question[] = [
     answer: 0,
     why: "F = E|q₀| = (2.0 N/C)(18 × 10⁻⁸ C) = 3.6 × 10⁻⁷ N.",
   },
-  {
-    q: "A 12 V battery is connected to a 4 Ω resistor. What current flows?",
-    options: ["2 A", "3 A", "4 A", "48 A"],
-    answer: 1,
-    why: "Ohm's law gives I = V/R = 12 V / 4 Ω = 3 A.",
-  },
-  {
-    q: "Two resistors of 6 Ω and 3 Ω are connected in series. What is their equivalent resistance?",
-    options: ["3 Ω", "9 Ω", "18 Ω", "2 Ω"],
-    answer: 1,
-    why: "Series resistances add: R_eq = 6 Ω + 3 Ω = 9 Ω.",
-  },
-  {
-    q: "What happens to the current in an ideal circuit when its switch opens?",
-    options: ["It doubles", "It stays unchanged", "It becomes infinite", "It falls to zero"],
-    answer: 3,
-    why: "An open switch breaks the conducting path, so an ideal series circuit has no current.",
-  },
 ];
 
 export default function ElectrostaticsLesson() {

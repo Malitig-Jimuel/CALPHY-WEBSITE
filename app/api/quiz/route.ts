@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { revalidateQuizPages } from "@/lib/revalidateQuizPages";
 
 const QUIZ_ID = "dashboard-physics";
 
@@ -157,6 +158,8 @@ export async function POST(request: Request) {
         answers: true,
       },
     });
+
+    revalidateQuizPages();
 
     return NextResponse.json(
       {
