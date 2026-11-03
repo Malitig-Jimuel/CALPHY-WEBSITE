@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { revalidateQuizPages } from "@/lib/revalidateQuizPages";
 
 const QUIZ_ID = "dashboard-physics";
 
@@ -11,6 +12,8 @@ const questions = [
     text: "What is the SI unit of force?",
     options: ["Joule", "Newton", "Watt", "Pascal"],
     correctIndex: 1,
+    explanation:
+      "Force is measured in newtons (N). One newton accelerates a 1 kg mass at 1 m/s².",
   },
   {
     id: "q2",
@@ -22,12 +25,16 @@ const questions = [
       "Mass increases automatically",
     ],
     correctIndex: 2,
+    explanation:
+      "Newton's second law is F = ma. With constant mass, a larger net force produces a larger acceleration.",
   },
   {
     id: "q3",
     text: "Which quantity is measured in hertz (Hz)?",
     options: ["Wavelength", "Frequency", "Force", "Temperature"],
     correctIndex: 1,
+    explanation:
+      "Hertz measures frequency, or the number of cycles that occur per second.",
   },
   {
     id: "q4",
@@ -39,12 +46,16 @@ const questions = [
       "None of these",
     ],
     correctIndex: 2,
+    explanation:
+      "A convex mirror produces an upright, virtual, reduced image for a real object placed in front of it.",
   },
   {
     id: "q5",
     text: "What is the SI unit of temperature?",
     options: ["Celsius", "Kelvin", "Fahrenheit", "Joule"],
     correctIndex: 1,
+    explanation:
+      "The kelvin (K) is the SI base unit of thermodynamic temperature.",
   },
 ];
 
@@ -126,6 +137,8 @@ export async function POST(request: Request) {
       questionText: question.text,
       selectedAnswer: question.options[selectedIndexes[index]],
       correctAnswer: question.options[question.correctIndex],
+      choices: JSON.stringify(question.options),
+      explanation: question.explanation,
       isCorrect: selectedIndexes[index] === question.correctIndex,
     }));
 
@@ -145,6 +158,8 @@ export async function POST(request: Request) {
         answers: true,
       },
     });
+
+    revalidateQuizPages();
 
     return NextResponse.json(
       {

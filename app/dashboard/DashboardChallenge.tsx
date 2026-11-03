@@ -1,6 +1,7 @@
 
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import {
   CheckCircle2,
@@ -62,6 +63,7 @@ const questions = [
 type SaveState = "idle" | "saving" | "saved" | "error";
 
 export default function DashboardChallenge() {
+  const router = useRouter();
   const [questionIndex, setQuestionIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [answers, setAnswers] = useState<number[]>([]);
@@ -114,6 +116,7 @@ export default function DashboardChallenge() {
       setSaveState("saved");
       setSaveMessage("Your result has been saved to your account.");
       setAttemptId(result.attempt.id);
+      router.refresh();
     } catch (error) {
       setSaveState("error");
       setSaveMessage(

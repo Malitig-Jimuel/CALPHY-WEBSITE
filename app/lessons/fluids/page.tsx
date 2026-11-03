@@ -14,6 +14,27 @@ import {
   Wind,
   XCircle,
 } from "lucide-react";
+import LessonQuizFeedback from "../LessonQuizFeedback";
+import LessonHeader from "../LessonHeader";
+import LessonNavigation from "../LessonNavigation";
+import LessonSidebar from "../LessonSidebar";
+import LessonProgressTracker from "../LessonProgressTracker";
+import LessonQuizQuestion, {
+  getQuizOptionClass,
+  QUIZ_OPTION_BASE_CLASS,
+  QUIZ_RETRY_BUTTON_CLASS,
+  QUIZ_SUBMIT_BUTTON_CLASS,
+} from "../LessonQuizQuestion";
+import { useLessonQuizResult } from "../useLessonQuizResult";
+
+const lessonSections = [
+  { id: "pressure-density", label: "Pressure & density" },
+  { id: "archimedes", label: "Archimedes’ principle" },
+  { id: "continuity", label: "Continuity" },
+  { id: "bernoulli", label: "Bernoulli’s principle" },
+  { id: "torricelli", label: "Torricelli’s theorem" },
+  { id: "quiz", label: "Quiz" },
+];
 
 type Question = {
   question: string;
@@ -394,6 +415,43 @@ export default function FluidsPage() {
   // Quiz
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [submitted, setSubmitted] = useState(false);
+  const {
+    saveState,
+    saveMessage,
+    passed,
+    saveResult,
+    resetResult,
+  } = useLessonQuizResult();
+
+  // Keep the latest slider value available to the animation loop
+  useEffect(() => {
+    flowSpeedRef.current = flowSpeed;
+  }, [flowSpeed]);
+
+  // Animate the flow dots: they speed up wherever the pipe narrows
+  useEffect(() => {
+    let frame = 0;
+    let last = performance.now();
+
+    const step = (now: number) => {
+      const dt = Math.min(0.05, (now - last) / 1000);
+      last = now;
+      const baseSpeed = flowSpeedRef.current * 1.4; // SVG units per second in the wide section
+
+      setDots((previous) =>
+        previous.map((line) =>
+          line.map((x) => {
+            const next = x + baseSpeed * (WIDE_H / halfHeight(x)) * dt;
+            return next > PIPE_X1 ? next - PIPE_LEN : next;
+          })
+        )
+      );
+      frame = requestAnimationFrame(step);
+    };
+
+    frame = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(frame);
+  }, []);
 
   // Keep the latest slider value available to the animation loop
   useEffect(() => {
@@ -459,10 +517,25 @@ export default function FluidsPage() {
     (total, question, index) => total + (answers[index] === question.answer ? 1 : 0),
     0
   );
+  const answeredCount = Object.keys(answers).length;
 
   const resetQuiz = () => {
     setAnswers({});
     setSubmitted(false);
+    resetResult();
+  };
+
+  const submitQuiz = () => {
+    setSubmitted(true);
+    void saveResult(
+      "fluids",
+      fluidQuestions.map((_, index) => answers[index] ?? -1),
+      fluidQuestions.map((question) => ({
+        question: question.question,
+        choices: question.options,
+        explanation: question.explanation,
+      }))
+    );
   };
 
   const continuitySliders = [
@@ -479,38 +552,31 @@ export default function FluidsPage() {
   const jetEndX = 130 + torricelliSpeed * 12;
 
   return (
-    <main className="min-h-screen bg-[#080D1B] text-[#F8FAFC]">
-      <nav className="sticky top-0 z-30 border-b border-white/10 bg-[#080D1B]/90 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4">
-          <Link href="/" className="text-xl font-black tracking-tight">
-            Calph<span className="text-sky-400">++</span>
-          </Link>
-          <Link
-            href="/#topics"
-            className="flex items-center gap-2 text-sm text-slate-300 transition hover:text-sky-400"
-          >
-            <ArrowLeft size={16} /> All topics
-          </Link>
-        </div>
-      </nav>
+    <main className="flex h-dvh flex-col overflow-hidden bg-[#080D1B] text-[#F8FAFC]">
+      <LessonNavigation />
 
-      <div className="mx-auto max-w-7xl px-5 py-10 md:py-16">
-        <motion.header
-          initial={{ opacity: 0, y: 18 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-12"
-        >
-          <div className="mb-5 flex items-center gap-2 text-sm font-semibold text-sky-400">
-            <Droplets size={18} /> PHYSICS MODULE 02
-          </div>
-          <h1 className="max-w-4xl text-4xl font-black tracking-tight sm:text-5xl md:text-6xl">
-            Fluids: <span className="text-sky-400">The Science of Flow</span>
-          </h1>
-          <p className="mt-5 max-w-3xl text-base leading-7 text-slate-400 md:text-lg">
+      <div className="grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] md:grid-rows-1 md:grid-cols-[250px_minmax(0,1fr)]">
+        <LessonSidebar sections={lessonSections} />
+        <div id="lesson-main-scroll" className="min-w-0 overflow-y-auto overscroll-contain px-4 py-6 sm:px-6 lg:px-10">
+        <div className="mx-auto w-full max-w-[1600px]">
+        <LessonProgressTracker lessonSlug="fluids" />
+        <LessonHeader
+          module="Physics module 02"
+          icon={<Droplets size={18} />}
+          accentClass="text-sky-400"
+          title={
+            <>
+              Fluids: <span className="text-sky-400">The Science of Flow</span>
+            </>
+          }
+          description={
+            <>
             Explore pressure, specific gravity, and density, why objects float or sink, how flow
             rate and continuity work, and how Bernoulli’s principle leads to Torricelli’s theorem.
-          </p>
-          <div className="mt-6 flex flex-wrap gap-2">
+            </>
+          }
+        >
+          <div className="flex flex-wrap gap-2">
             {topicLinks.map((topic) => (
               <a
                 key={topic.href}
@@ -521,7 +587,7 @@ export default function FluidsPage() {
               </a>
             ))}
           </div>
-        </motion.header>
+        </LessonHeader>
 
         <section className="mb-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {formulaCards.map((item) => (
@@ -875,6 +941,36 @@ export default function FluidsPage() {
             pull liquid up a tube. Combine it with the continuity principle: a narrow section makes the
             fluid faster, and Bernoulli then tells you the pressure there is lower.
           </p>
+          <div className="mb-6 grid gap-4 rounded-2xl border border-white/10 bg-[#080D1B] p-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+            <div>
+              <h3 className="font-bold text-sky-300">Application: airflow around an airplane wing</h3>
+              <p className="mt-2 text-sm leading-6 text-slate-400">
+                The wing deflects air downward and creates a pressure distribution across its
+                surfaces. Faster airflow over parts of the upper surface is associated with lower
+                static pressure there; the pressure difference contributes to upward lift. The
+                complete explanation also accounts for the air’s downward momentum change—there is
+                no rule that air parcels must meet again at the wing’s trailing edge.
+              </p>
+            </div>
+            <svg
+              viewBox="0 0 360 150"
+              role="img"
+              aria-label="Airflow streamlines over and under an airplane wing, with lower pressure above and higher pressure below"
+              className="w-full max-w-sm"
+            >
+              <defs>
+                <marker id="wingFlowArrow" markerWidth="7" markerHeight="7" refX="6" refY="3" orient="auto">
+                  <path d="M0,0 L6,3 L0,6 Z" fill="#7DD3FC" />
+                </marker>
+              </defs>
+              <path d="M48 72 C112 20 228 24 314 68" fill="none" stroke="#7DD3FC" strokeWidth="2" markerEnd="url(#wingFlowArrow)" />
+              <path d="M48 80 C120 48 232 48 314 75" fill="none" stroke="#7DD3FC" strokeWidth="2" markerEnd="url(#wingFlowArrow)" />
+              <path d="M48 91 C130 106 224 105 314 91" fill="none" stroke="#A5B4FC" strokeWidth="2" markerEnd="url(#wingFlowArrow)" />
+              <path d="M88 83 Q174 42 276 82 Q188 91 88 83Z" fill="#334155" stroke="#CBD5E1" strokeWidth="2" />
+              <text x="180" y="19" fill="#7DD3FC" fontSize="12" textAnchor="middle">Faster flow · lower pressure</text>
+              <text x="180" y="129" fill="#C4B5FD" fontSize="12" textAnchor="middle">Higher pressure below contributes to lift ↑</text>
+            </svg>
+          </div>
           <div className="grid gap-8 lg:grid-cols-2 lg:items-center">
             <div className="rounded-2xl border border-white/10 bg-[#080D1B] p-5">
               <div className="mb-3 flex items-center justify-between gap-3">
@@ -1050,36 +1146,44 @@ export default function FluidsPage() {
           <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
             <div>
               <p className="text-sm font-semibold text-emerald-300">CHECK YOUR KNOWLEDGE</p>
-              <h2 className="mt-2 text-2xl font-bold md:text-3xl">Fluids Quiz</h2>
-              <p className="mt-2 text-slate-400">
-                Answer all {fluidQuestions.length} questions to check your understanding.
+              <h2 className="mt-2 text-2xl font-bold md:text-3xl">
+                Fluids · {fluidQuestions.length} questions
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-slate-400">
+                Answer every question. Your score and explanations appear after submission.
               </p>
             </div>
-            {submitted && (
-              <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-5 py-3">
+            <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-5 py-3">
                 <p className="text-sm text-slate-300">Your score</p>
                 <p className="text-2xl font-black text-emerald-300">
-                  {score} / {fluidQuestions.length}
+                  {submitted ? `${score} / ${fluidQuestions.length}` : `${answeredCount} / ${fluidQuestions.length}`}
                 </p>
-              </div>
-            )}
+            </div>
+          </div>
+
+          <div className="mb-6 h-2 overflow-hidden rounded-full bg-white/10" role="progressbar" aria-label="Quiz questions answered" aria-valuemin={0} aria-valuemax={fluidQuestions.length} aria-valuenow={answeredCount}>
+            <div className="h-full rounded-full bg-sky-400 transition-all" style={{ width: `${(answeredCount / fluidQuestions.length) * 100}%` }} />
           </div>
 
           <div className="space-y-6">
             {fluidQuestions.map((question, index) => (
-              <div key={index} className="rounded-2xl border border-white/10 bg-[#080D1B] p-5">
+              <LessonQuizQuestion key={index} number={index + 1}>
                 <p className="font-semibold leading-6">
-                  <span className="mr-2 text-sky-400">{String(index + 1).padStart(2, "0")}.</span>
                   {question.question}
                 </p>
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
                   {question.options.map((option, optionIndex) => {
                     const selected = answers[index] === optionIndex;
                     const correct = question.answer === optionIndex;
-                    let optionStyle = "border-white/10 bg-white/[0.03] hover:border-sky-300/50";
-                    if (selected) optionStyle = "border-sky-400 bg-sky-400/10";
-                    if (submitted && correct) optionStyle = "border-emerald-400 bg-emerald-400/10";
-                    if (submitted && selected && !correct) optionStyle = "border-rose-400 bg-rose-400/10";
+                    const optionState = submitted
+                      ? correct
+                        ? "correct"
+                        : selected
+                          ? "incorrect"
+                          : "muted"
+                      : selected
+                        ? "selected"
+                        : "default";
 
                     return (
                       <button
@@ -1087,7 +1191,7 @@ export default function FluidsPage() {
                         type="button"
                         disabled={submitted}
                         onClick={() => setAnswers((previous) => ({ ...previous, [index]: optionIndex }))}
-                        className={`flex items-center gap-3 rounded-xl border p-4 text-left text-sm transition disabled:cursor-default ${optionStyle}`}
+                        className={`${QUIZ_OPTION_BASE_CLASS} ${getQuizOptionClass(optionState)}`}
                       >
                         <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/5 text-xs font-bold text-slate-300">
                           {String.fromCharCode(65 + optionIndex)}
@@ -1105,7 +1209,7 @@ export default function FluidsPage() {
                     {question.explanation}
                   </p>
                 )}
-              </div>
+              </LessonQuizQuestion>
             ))}
           </div>
 
@@ -1114,8 +1218,8 @@ export default function FluidsPage() {
               <button
                 type="button"
                 disabled={Object.keys(answers).length !== fluidQuestions.length}
-                onClick={() => setSubmitted(true)}
-                className="inline-flex items-center gap-2 rounded-xl bg-sky-400 px-5 py-3 font-bold text-slate-950 transition hover:bg-sky-300 disabled:cursor-not-allowed disabled:opacity-40"
+                onClick={submitQuiz}
+                className={QUIZ_SUBMIT_BUTTON_CLASS}
               >
                 Submit quiz <ArrowRight size={18} />
               </button>
@@ -1123,12 +1227,28 @@ export default function FluidsPage() {
               <button
                 type="button"
                 onClick={resetQuiz}
-                className="inline-flex items-center gap-2 rounded-xl border border-white/15 px-5 py-3 font-semibold transition hover:bg-white/5"
+                className={QUIZ_RETRY_BUTTON_CLASS}
               >
                 <RotateCcw size={18} /> Try again
               </button>
             )}
           </div>
+          <LessonQuizFeedback
+            saveState={saveState}
+            passed={passed}
+            message={saveMessage}
+            onRetry={() =>
+              void saveResult(
+                "fluids",
+                fluidQuestions.map((_, index) => answers[index] ?? -1),
+                fluidQuestions.map((question) => ({
+                  question: question.question,
+                  choices: question.options,
+                  explanation: question.explanation,
+                }))
+              )
+            }
+          />
         </section>
 
         <footer className="flex flex-wrap items-center justify-between gap-4 border-t border-white/10 pt-6 text-sm text-slate-500">
@@ -1137,6 +1257,8 @@ export default function FluidsPage() {
             Previous lesson <ArrowLeft size={16} />
           </Link>
         </footer>
+        </div>
+        </div>
       </div>
     </main>
   );

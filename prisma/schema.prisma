@@ -4,8 +4,9 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider  = "postgresql"
   url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
@@ -58,6 +59,8 @@ model QuizAnswer {
   questionText   String
   selectedAnswer String
   correctAnswer  String
+  choices        String?
+  explanation    String?
   isCorrect      Boolean
   createdAt      DateTime    @default(now())
 
