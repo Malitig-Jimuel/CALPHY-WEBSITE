@@ -453,6 +453,36 @@ export default function FluidsPage() {
     return () => cancelAnimationFrame(frame);
   }, []);
 
+  // Keep the latest slider value available to the animation loop
+  useEffect(() => {
+    flowSpeedRef.current = flowSpeed;
+  }, [flowSpeed]);
+
+  // Animate the flow dots: they speed up wherever the pipe narrows
+  useEffect(() => {
+    let frame = 0;
+    let last = performance.now();
+
+    const step = (now: number) => {
+      const dt = Math.min(0.05, (now - last) / 1000);
+      last = now;
+      const baseSpeed = flowSpeedRef.current * 1.4; // SVG units per second in the wide section
+
+      setDots((previous) =>
+        previous.map((line) =>
+          line.map((x) => {
+            const next = x + baseSpeed * (WIDE_H / halfHeight(x)) * dt;
+            return next > PIPE_X1 ? next - PIPE_LEN : next;
+          })
+        )
+      );
+      frame = requestAnimationFrame(step);
+    };
+
+    frame = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(frame);
+  }, []);
+
   // Derived values
   const isFloating = objectDensity < fluidDensity;
   const isSuspended = objectDensity === fluidDensity;
