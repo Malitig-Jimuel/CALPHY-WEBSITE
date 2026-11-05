@@ -18,8 +18,8 @@ export async function POST(request: Request) {
 
     if (!session?.user?.email) {
       return NextResponse.json(
-        { error: "Please log in to save your progress." },
-        { status: 401 }
+        { saved: false, message: "Guest lesson activity is not saved." },
+        { status: 200 }
       );
     }
 

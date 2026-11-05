@@ -1,13 +1,13 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { ArrowRight, CheckCircle2, Circle, Clock3 } from "lucide-react";
+import { ArrowRight, CheckCircle2, Circle } from "lucide-react";
 import DashboardPageShell, {
   DashboardPageFallback,
 } from "../_components/DashboardPageShell";
 import {
-  dashboardLessons,
   requireDashboardUser,
 } from "../_lib";
+import { lessons } from "../../lessonModules";
 import { prisma } from "@/lib/prisma";
 
 async function DashboardProgressContent() {
@@ -24,25 +24,24 @@ async function DashboardProgressContent() {
   const progressBySlug = new Map(
     progress.map((item) => [item.lessonSlug, item])
   );
-  const completed = dashboardLessons.filter(
+  const completed = lessons.filter(
     (lesson) => progressBySlug.get(lesson.slug)?.completed
   ).length;
-  const inProgress = dashboardLessons.filter((lesson) => {
-    const item = progressBySlug.get(lesson.slug);
-    return item && !item.completed;
-  }).length;
-  const notStarted = dashboardLessons.length - completed - inProgress;
+  const notCompleted = lessons.length - completed;
 
   return (
     <DashboardPageShell
       title="Module progress"
       description="Your completion status across the six physics modules, based on your saved lesson activity."
     >
-      <section className="mb-6 grid gap-3 sm:grid-cols-3">
+      <section className="mb-6 grid gap-3 sm:grid-cols-2">
         {[
           { label: "Completed", value: completed, color: "text-emerald-300" },
-          { label: "In progress", value: inProgress, color: "text-sky-300" },
-          { label: "Not started", value: notStarted, color: "text-slate-300" },
+          {
+            label: "Not Completed",
+            value: notCompleted,
+            color: "text-slate-300",
+          },
         ].map((item) => (
           <div
             key={item.label}
@@ -58,7 +57,7 @@ async function DashboardProgressContent() {
 
       <section className="mb-6 rounded-2xl border border-sky-400/15 bg-sky-400/5 p-4 text-sm leading-6 text-sky-100/80">
         <p className="font-semibold text-sky-200">
-          {completed}/{dashboardLessons.length} modules completed
+          {completed}/{lessons.length} modules completed
         </p>
         <p className="mt-1">
           The current tracker records lesson visits and quiz completion, not
@@ -68,19 +67,11 @@ async function DashboardProgressContent() {
       </section>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        {dashboardLessons.map((lesson, index) => {
+        {lessons.map((lesson, index) => {
           const item = progressBySlug.get(lesson.slug);
           const isComplete = item?.completed ?? false;
-          const status = isComplete
-            ? "Completed"
-            : item
-              ? "In Progress"
-              : "Not Started";
-          const StatusIcon = isComplete
-            ? CheckCircle2
-            : item
-              ? Clock3
-              : Circle;
+          const status = isComplete ? "Completed" : "Not Completed";
+          const StatusIcon = isComplete ? CheckCircle2 : Circle;
           return (
             <article
               key={lesson.slug}
@@ -97,46 +88,19 @@ async function DashboardProgressContent() {
                   className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold ${
                     isComplete
                       ? "bg-emerald-400/10 text-emerald-300"
-                      : item
-                        ? "bg-sky-400/10 text-sky-300"
-                        : "bg-white/5 text-slate-400"
+                      : "bg-white/5 text-slate-400"
                   }`}
                 >
                   <StatusIcon size={14} />
                   {status}
                 </span>
               </div>
-              {isComplete ? (
-                <div className="mt-5">
-                  <div className="flex justify-between text-xs text-slate-400">
-                    <span>Module completion</span>
-                    <span>100%</span>
-                  </div>
-                  <div
-                    className="mt-2 h-2 overflow-hidden rounded-full bg-white/10"
-                    role="progressbar"
-                    aria-label={`${lesson.title} completion`}
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                    aria-valuenow={100}
-                  >
-                    <div className="h-full w-full rounded-full bg-emerald-400" />
-                  </div>
-                  <p className="mt-3 text-xs text-slate-500">
-                    {item?.completedAt
-                      ? `Completed ${new Intl.DateTimeFormat("en-PH", {
-                          dateStyle: "medium",
-                        }).format(item.completedAt)}`
-                      : "Completion date unavailable"}
-                  </p>
-                </div>
-              ) : (
+              {isComplete && item?.completedAt && (
                 <p className="mt-5 min-h-10 text-sm leading-5 text-slate-400">
-                  {item?.lastAccessedAt
-                    ? `Last visited ${new Intl.DateTimeFormat("en-PH", {
-                        dateStyle: "medium",
-                      }).format(item.lastAccessedAt)}. Partial lesson progress is not tracked.`
-                    : "Open this lesson to begin tracking activity."}
+                  Completed{" "}
+                  {new Intl.DateTimeFormat("en-PH", {
+                    dateStyle: "medium",
+                  }).format(item.completedAt)}
                 </p>
               )}
               <Link

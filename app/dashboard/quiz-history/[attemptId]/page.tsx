@@ -6,7 +6,6 @@ import DashboardPageShell, {
   DashboardPageFallback,
 } from "../../_components/DashboardPageShell";
 import {
-  dashboardLessons,
   getAssociatedLesson,
   getAttemptPercentage,
   getAttemptStatus,
@@ -14,6 +13,7 @@ import {
   requireDashboardUser,
 } from "../../_lib";
 import { prisma } from "@/lib/prisma";
+import { lessons } from "../../../lessonModules";
 
 function readChoices(choices: string | null) {
   if (!choices) return null;
@@ -51,7 +51,7 @@ async function QuizAttemptReviewContent({
     attempt.score,
     attempt.totalQuestions
   );
-  const lesson = dashboardLessons.find(
+  const lesson = lessons.find(
     (item) => item.slug === attempt.quizId
   );
 

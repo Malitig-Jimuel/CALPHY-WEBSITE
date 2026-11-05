@@ -5,8 +5,6 @@ import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { ArrowLeft, ArrowRight, CheckCircle2, Radio, RotateCcw, Save, Square, Volume2, XCircle } from "lucide-react";
 import LessonHeader from "../LessonHeader";
-import LessonNavigation from "../LessonNavigation";
-import LessonSidebar from "../LessonSidebar";
 import LessonProgressTracker from "../LessonProgressTracker";
 import LessonQuizQuestion, {
   getQuizOptionClass,
@@ -14,15 +12,7 @@ import LessonQuizQuestion, {
   QUIZ_RETRY_BUTTON_CLASS,
   QUIZ_SUBMIT_BUTTON_CLASS,
 } from "../LessonQuizQuestion";
-
-const lessonSections = [
-  { id: "wave-basics", label: "Lesson Overview" },
-  { id: "wave-simulator", label: "Wave simulator" },
-  { id: "wave-types", label: "Wave types" },
-  { id: "sample-problems", label: "Sample Problems" },
-  { id: "sound-pitch", label: "Sound & pitch" },
-  { id: "quiz", label: "Quiz" },
-];
+import { useShuffledQuestionOrder } from "../quizRandomization";
 
 const questions = [
   { q: "What is the unit of frequency?", options: ["Meter", "Hertz", "Second", "Decibel"], a: 1, why: "Frequency is measured in hertz (Hz), or cycles per second." },
@@ -46,11 +36,153 @@ const questions = [
   { q: "Resonance occurs when a periodic driving frequency is close to an object's…", options: ["maximum displacement", "wave speed", "natural frequency", "wavelength"], a: 2, why: "Resonance produces a large response when the driving frequency matches or is close to the system's natural frequency." },
   { q: "Sound traveling through air is primarily which type of wave?", options: ["Transverse electromagnetic", "Transverse mechanical", "Longitudinal electromagnetic", "Longitudinal mechanical"], a: 3, why: "Sound in air is a longitudinal mechanical wave: air particles oscillate parallel to the direction the wave travels." },
 ];
+const quizOptionCounts = questions.map((question) => question.options.length);
 
-type SaveState = "idle" | "saving" | "saved" | "error";
+type SaveState = "idle" | "saving" | "saved" | "guest" | "error";
+
+type WaveWorkedExampleData = {
+  title: string;
+  problem: string;
+  given: string[];
+  find: string;
+  formula: string[];
+  substitution: string[];
+  calculation: string[];
+  answer: string;
+};
+
+function WaveWorkedExample({
+  example,
+  accent = "sky",
+}: {
+  example: WaveWorkedExampleData;
+  accent?: "sky" | "violet" | "amber" | "emerald";
+}) {
+  const [open, setOpen] = useState(false);
+  const solutionId = `wave-solution-${example.title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")}`;
+  const accentText = {
+    sky: "text-sky-300",
+    violet: "text-violet-300",
+    amber: "text-amber-300",
+    emerald: "text-emerald-300",
+  }[accent];
+
+  return (
+    <article className="rounded-2xl border border-white/10 bg-[#080D1B] p-5">
+      <h3 className={`font-bold ${accentText}`}>{example.title}</h3>
+      <p className="mt-2 text-sm leading-6 text-slate-300">{example.problem}</p>
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-controls={solutionId}
+        onClick={() => setOpen((currentlyOpen) => !currentlyOpen)}
+        className={`mt-4 inline-flex min-h-10 items-center rounded-lg border border-white/15 px-3 py-2 text-sm font-semibold text-slate-200 transition hover:bg-white/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-300`}
+      >
+        {open ? "Hide Solution" : "Show Solution"}
+      </button>
+      {open && (
+        <div
+          id={solutionId}
+          className="mt-4 rounded-xl bg-white/[0.03] p-4 text-sm leading-6 text-slate-400"
+        >
+          <div className="space-y-3">
+            <div>
+              <p className="font-semibold text-slate-200">Given</p>
+              {example.given.map((line) => <p key={line}>{line}</p>)}
+            </div>
+            <div>
+              <p className="font-semibold text-slate-200">Find</p>
+              <p>{example.find}</p>
+            </div>
+            <div>
+              <p className="font-semibold text-slate-200">Formula</p>
+              {example.formula.map((line) => <p key={line}>{line}</p>)}
+            </div>
+            <div>
+              <p className="font-semibold text-slate-200">Substitution</p>
+              {example.substitution.map((line) => <p key={line}>{line}</p>)}
+            </div>
+            <div>
+              <p className="font-semibold text-slate-200">Calculation</p>
+              {example.calculation.map((line) => <p key={line}>{line}</p>)}
+            </div>
+            <div className="rounded-xl bg-emerald-400/5 p-3">
+              <p className="font-semibold text-emerald-300">Final Answer</p>
+              <p className="font-bold text-emerald-200">{example.answer}</p>
+            </div>
+          </div>
+        </div>
+      )}
+    </article>
+  );
+}
+
+function StringHarmonicDiagram({ harmonic }: { harmonic: 1 | 2 | 3 }) {
+  const left = 48;
+  const right = 312;
+  const equilibrium = 78;
+  const amplitude = 25;
+  const path = Array.from({ length: 81 }, (_, index) => {
+    const fraction = index / 80;
+    const x = left + fraction * (right - left);
+    const y = equilibrium - Math.sin(harmonic * Math.PI * fraction) * amplitude;
+    return `${index === 0 ? "M" : "L"} ${x.toFixed(2)} ${y.toFixed(2)}`;
+  }).join(" ");
+  const nodes = Array.from({ length: harmonic + 1 }, (_, index) => ({
+    x: left + (index / harmonic) * (right - left),
+    y: equilibrium,
+  }));
+  const antinodes = Array.from({ length: harmonic }, (_, index) => {
+    const fraction = (index + 0.5) / harmonic;
+    return {
+      x: left + fraction * (right - left),
+      y: equilibrium - Math.sin(harmonic * Math.PI * fraction) * amplitude,
+    };
+  });
+
+  return (
+    <article className="rounded-2xl border border-white/10 bg-[#080D1B] p-4 sm:p-5">
+      <h3 className="font-bold text-violet-200">
+        {["First", "Second", "Third"][harmonic - 1]} harmonic · {harmonic}{" "}
+        {harmonic === 1 ? "loop" : "loops"}
+      </h3>
+      <svg
+        viewBox="0 0 360 150"
+        role="img"
+        aria-label={`${harmonic === 1 ? "First" : harmonic === 2 ? "Second" : "Third"} harmonic standing wave on a string fixed at both ends; ${harmonic + 1} nodes and ${harmonic} antinodes.`}
+        className="mt-3 w-full"
+      >
+        <line x1={left} y1="28" x2={right} y2="28" stroke="#64748B" />
+        <line x1={left} y1="23" x2={left} y2="33" stroke="#64748B" strokeWidth="2" />
+        <line x1={right} y1="23" x2={right} y2="33" stroke="#64748B" strokeWidth="2" />
+        <text x="180" y="21" fill="#CBD5E1" fontSize="12" textAnchor="middle">String length L</text>
+        <line x1={left} y1={equilibrium} x2={right} y2={equilibrium} stroke="#475569" strokeDasharray="4 5" />
+        <path d={path} fill="none" stroke="#A78BFA" strokeWidth="3" strokeLinecap="round" />
+        <line x1={left} y1="52" x2={left} y2="108" stroke="#CBD5E1" strokeWidth="3" />
+        <line x1={right} y1="52" x2={right} y2="108" stroke="#CBD5E1" strokeWidth="3" />
+        {nodes.map((node, index) => (
+          <circle key={`node-${index}`} cx={node.x} cy={node.y} r="5" fill="#38BDF8" stroke="#E0F2FE" strokeWidth="1.5" />
+        ))}
+        {antinodes.map((antinode, index) => (
+          <circle key={`antinode-${index}`} cx={antinode.x} cy={antinode.y} r="4.5" fill="#FBBF24" stroke="#FEF3C7" strokeWidth="1.5" />
+        ))}
+        <text x={left} y="124" fill="#CBD5E1" fontSize="10" textAnchor="middle">Fixed</text>
+        <text x={right} y="124" fill="#CBD5E1" fontSize="10" textAnchor="middle">Fixed</text>
+        <text x="180" y="143" fill="#C4B5FD" fontSize="12" textAnchor="middle">λ{harmonic} = {harmonic === 1 ? "2L" : harmonic === 2 ? "L" : "2L/3"}</text>
+      </svg>
+      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-400">
+        <span><span className="text-sky-300">●</span> Nodes</span>
+        <span><span className="text-amber-300">●</span> Antinodes</span>
+        <span className="text-slate-300">Each loop = λ{harmonic}/2</span>
+      </div>
+    </article>
+  );
+}
 
 export default function WavesSoundPage() {
-  const [amplitude, setAmplitude] = useState(45);
+  const [amplitude, setAmplitude] = useState(0.45);
   const [frequency, setFrequency] = useState(3);
   const [wavelength, setWavelength] = useState(2);
   const [toneFrequency, setToneFrequency] = useState(440);
@@ -61,15 +193,29 @@ export default function WavesSoundPage() {
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [saveMessage, setSaveMessage] = useState("");
   const [passed, setPassed] = useState<boolean | null>(null);
+  const [quizOrder, reshuffleQuiz] =
+    useShuffledQuestionOrder(quizOptionCounts);
+  const quizAttempt = quizOrder.map(({ questionIndex, optionOrder }) => {
+    const question = questions[questionIndex];
+
+    return {
+      ...question,
+      options: optionOrder.map((optionIndex) => question.options[optionIndex]),
+      a: optionOrder.indexOf(question.a),
+      questionIndex,
+      originalOptions: question.options,
+      optionOrder,
+    };
+  });
   const audioContextRef = useRef<AudioContext | null>(null);
   const oscillatorRef = useRef<OscillatorNode | null>(null);
-  const score = questions.filter((q, i) => answers[i] === q.a).length;
+  const score = quizAttempt.filter((q, i) => answers[i] === q.a).length;
   const answeredCount = Object.keys(answers).length;
   const wavePath = Array.from({ length: 121 }, (_, i) => {
     const x = i * 4;
     const cyclesAcrossDisplay = 4 / wavelength;
     const y = (
-      90 - Math.sin((i / 120) * Math.PI * 2 * cyclesAcrossDisplay) * amplitude
+      90 - Math.sin((i / 120) * Math.PI * 2 * cyclesAcrossDisplay) * amplitude * 100
     ).toFixed(2);
     return `${i === 0 ? "M" : "L"} ${x} ${y}`;
   }).join(" ");
@@ -140,11 +286,13 @@ export default function WavesSoundPage() {
         credentials: "same-origin",
         body: JSON.stringify({
           lessonSlug: "waves-sound",
-          answers: questions.map((_, i) => answers[i] ?? -1),
-          questions: questions.map((question) => ({
+          answers: quizAttempt.map((_, i) => answers[i] ?? -1),
+          questions: quizAttempt.map((question) => ({
             question: question.q,
-            choices: question.options,
+            choices: question.originalOptions,
             explanation: question.why,
+            questionIndex: question.questionIndex,
+            optionOrder: question.optionOrder,
           })),
         }),
       });
@@ -155,13 +303,30 @@ export default function WavesSoundPage() {
         throw new Error(result.error || "Could not save your quiz result.");
       }
 
+      if (typeof result.saved !== "boolean" || typeof result.passed !== "boolean") {
+        throw new Error("The quiz result could not be confirmed.");
+      }
+
       setPassed(result.passed);
-      setSaveState("saved");
-      setSaveMessage(
-        result.passed
-          ? "Great job! This module is now marked as completed on your dashboard."
+      setSaveState(result.saved ? "saved" : "guest");
+      if (result.saved) {
+        window.dispatchEvent(
+          new CustomEvent("calph-learning-progress-updated", {
+            detail: {
+              lessonSlug: "waves-sound",
+              completed:
+                typeof result.moduleCompleted === "boolean"
+                  ? result.moduleCompleted
+                  : result.passed,
+            },
+          })
+        );
+      }
+      setSaveMessage(result.saved
+        ? result.passed
+          ? "Great job! This module is now marked as completed."
           : `Your attempt was saved. You need at least ${result.passPercent}% to complete this module, so review the explanations and try again.`
-      );
+        : "Your score is shown for this session only. Register or log in to save quiz results and track progress.");
     } catch (error) {
       setSaveState("error");
       setSaveMessage(
@@ -183,14 +348,13 @@ export default function WavesSoundPage() {
     setSaveState("idle");
     setSaveMessage("");
     setPassed(null);
+    reshuffleQuiz();
   }
 
   return (
-    <main className="flex h-dvh flex-col overflow-hidden bg-[#080D1B] text-[#F8FAFC]">
-      <LessonNavigation />
-      <div className="grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] md:grid-rows-1 md:grid-cols-[250px_minmax(0,1fr)]">
-        <LessonSidebar sections={lessonSections} accentClass="text-violet-300" />
-        <div id="lesson-main-scroll" className="min-w-0 overflow-y-auto overscroll-contain px-4 py-6 sm:px-6 lg:px-10">
+    <main className="flex h-full min-h-0 flex-col overflow-hidden bg-[#080D1B] text-[#F8FAFC]">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <div id="lesson-main-scroll" className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain px-4 py-6 sm:px-6 lg:px-10">
         <div className="mx-auto w-full max-w-[1600px]">
         <LessonProgressTracker lessonSlug="waves-sound" />
         <LessonHeader
@@ -232,7 +396,7 @@ export default function WavesSoundPage() {
               </svg>
             </div>
             <div className="mt-6 space-y-5">
-              <div><label htmlFor="amp" className="mb-2 flex justify-between text-sm text-slate-300">Amplitude <strong className="text-violet-300">{amplitude}%</strong></label><input id="amp" type="range" min="10" max="75" value={amplitude} onChange={e=>setAmplitude(Number(e.target.value))} className="w-full accent-violet-400"/></div>
+              <div><label htmlFor="amp" className="mb-2 flex justify-between text-sm text-slate-300">Amplitude A <strong className="text-violet-300">{amplitude.toFixed(2)} m</strong></label><input id="amp" type="range" min="0.10" max="0.75" step="0.05" value={amplitude} onChange={e=>setAmplitude(Number(e.target.value))} className="w-full accent-violet-400"/></div>
               <div><label htmlFor="freq" className="mb-2 flex justify-between text-sm text-slate-300">Frequency f <strong className="text-violet-300">{frequency} Hz</strong></label><input id="freq" type="range" min="1" max="8" value={frequency} onChange={e=>setFrequency(Number(e.target.value))} className="w-full accent-violet-400"/></div>
               <div><label htmlFor="wavelength" className="mb-2 flex justify-between text-sm text-slate-300">Wavelength λ <strong className="text-violet-300">{wavelength.toFixed(1)} m</strong></label><input id="wavelength" type="range" min="0.5" max="4" step="0.1" value={wavelength} onChange={e=>setWavelength(Number(e.target.value))} className="w-full accent-violet-400"/></div>
               <div className="grid gap-3 sm:grid-cols-3">
@@ -250,6 +414,9 @@ export default function WavesSoundPage() {
                 </div>
               </div>
               <p className="rounded-xl bg-white/5 p-4 text-sm leading-6 text-slate-400">For waves traveling in the same medium at fixed speed, increasing frequency requires a shorter wavelength. Amplitude changes the maximum displacement, not the wave speed in this idealized model.</p>
+              <button type="button" onClick={() => { setAmplitude(0.45); setFrequency(3); setWavelength(2); }} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-sm font-semibold text-slate-300 transition hover:bg-white/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-300">
+                <RotateCcw size={15} /> Reset wave defaults
+              </button>
             </div>
           </article>
         </section>
@@ -288,37 +455,208 @@ export default function WavesSoundPage() {
           </p>
         </section>
 
+        <section id="string-harmonics" className="mb-10 scroll-mt-28 rounded-3xl border border-violet-400/20 bg-[#111A2E] p-6 md:p-8">
+          <p className="text-sm font-semibold text-violet-300">STANDING WAVES</p>
+          <h2 className="mt-2 text-2xl font-bold md:text-3xl">3. Waves on a stretched string</h2>
+          <p className="mt-3 max-w-4xl leading-7 text-slate-300">
+            A string fixed at both ends can vibrate in standing-wave modes. Each fixed
+            endpoint is a node, where displacement is zero. Antinodes lie between nodes
+            and have the greatest displacement. A higher harmonic fits more loops along
+            the same string, so the string length is not generally one wavelength.
+          </p>
+          <div className="mt-5 grid gap-4 sm:grid-cols-3">
+            {([1, 2, 3] as const).map((harmonic) => (
+              <StringHarmonicDiagram key={harmonic} harmonic={harmonic} />
+            ))}
+          </div>
+          <div className="mt-5 rounded-2xl border border-white/10 bg-[#080D1B] p-5">
+            <h3 className="font-bold text-sky-300">Allowed wavelengths and frequencies</h3>
+            <p className="mt-2 leading-7 text-slate-300">
+              For a string fixed at both ends, an integer number n of half-wavelengths
+              fits into its length:
+            </p>
+            <div className="mt-4 grid gap-3 text-center sm:grid-cols-3">
+              <p className="rounded-xl bg-white/5 p-4 font-mono text-lg font-bold text-violet-200">L = nλₙ/2</p>
+              <p className="rounded-xl bg-white/5 p-4 font-mono text-lg font-bold text-violet-200">λₙ = 2L/n</p>
+              <p className="rounded-xl bg-white/5 p-4 font-mono text-lg font-bold text-violet-200">fₙ = nv/(2L)</p>
+            </div>
+            <p className="mt-4 text-sm leading-6 text-slate-400">
+              L is string length (m), n = 1, 2, 3, … is the harmonic number, λₙ is
+              that mode&apos;s wavelength (m), fₙ is its frequency (Hz), and v is wave
+              speed along the string (m/s). Thus λ₁ = 2L, λ₂ = L, and λ₃ = 2L/3.
+              The fundamental frequency is f₁ = v/(2L); ideal-string harmonics have
+              frequencies fₙ = n f₁. Nodes occur at the endpoints and between adjacent
+              loops; each loop is one half-wavelength, λₙ/2.
+            </p>
+          </div>
+          <div className="mt-5 grid gap-4 lg:grid-cols-2">
+            <WaveWorkedExample
+              accent="violet"
+              example={{
+                title: "Finding a harmonic wavelength",
+                problem: "A string fixed at both ends is 0.80 m long. Find the wavelength of its second harmonic.",
+                given: ["L = 0.80 m", "n = 2"],
+                find: "The second-harmonic wavelength, λ₂.",
+                formula: ["L = nλₙ/2", "λₙ = 2L/n"],
+                substitution: ["λ₂ = 2(0.80 m)/2"],
+                calculation: ["λ₂ = 0.80 m"],
+                answer: "λ₂ = 0.80 m",
+              }}
+            />
+            <WaveWorkedExample
+              accent="violet"
+              example={{
+                title: "Finding a harmonic frequency",
+                problem: "A string has length 0.75 m and supports waves traveling at 120 m/s. Find its third-harmonic frequency.",
+                given: ["L = 0.75 m", "v = 120 m/s", "n = 3"],
+                find: "The third-harmonic frequency, f₃.",
+                formula: ["fₙ = nv/(2L)"],
+                substitution: ["f₃ = (3)(120 m/s)/(2 × 0.75 m)"],
+                calculation: ["f₃ = 360 m/s ÷ 1.50 m = 240 s⁻¹"],
+                answer: "f₃ = 240 Hz",
+              }}
+            />
+          </div>
+        </section>
+
         <section id="sample-problems" className="mb-10 scroll-mt-28 rounded-3xl border border-white/10 bg-[#111A2E] p-6 md:p-8">
           <p className="text-sm font-semibold text-orange-300">SAMPLE PROBLEMS</p>
           <h2 className="mt-2 text-2xl font-bold">Use the Wave Relationships</h2>
           <div className="mt-5 grid gap-4 lg:grid-cols-2">
-            <article className="rounded-2xl border border-white/10 bg-[#080D1B] p-5">
-              <h3 className="font-bold text-sky-300">Finding wave speed</h3>
-              <p className="mt-2 text-sm leading-6 text-slate-300">A wave has frequency 24 Hz and wavelength 0.75 m. Find its speed.</p>
-              <ol className="mt-3 list-inside list-decimal space-y-2 text-sm leading-6 text-slate-400">
-                <li>Given: f = 24 Hz; λ = 0.75 m. Find v.</li>
-                <li>Use v = fλ for a periodic wave.</li>
-                <li>Substitute: v = (24 s⁻¹)(0.75 m) = 18 m/s.</li>
-              </ol>
-              <p className="mt-4 rounded-xl bg-emerald-400/5 p-3 text-sm font-bold text-emerald-300">Answer: 18 m/s</p>
-            </article>
-            <article className="rounded-2xl border border-white/10 bg-[#080D1B] p-5">
-              <h3 className="font-bold text-violet-300">Finding period from frequency</h3>
-              <p className="mt-2 text-sm leading-6 text-slate-300">A tone has frequency 440 Hz. Find the time for one cycle.</p>
-              <ol className="mt-3 list-inside list-decimal space-y-2 text-sm leading-6 text-slate-400">
-                <li>Given: f = 440 Hz. Find T.</li>
-                <li>Use T = 1/f because period and frequency are reciprocals.</li>
-                <li>T = 1/440 s = 0.00227 s = 2.27 ms.</li>
-              </ol>
-              <p className="mt-4 rounded-xl bg-emerald-400/5 p-3 text-sm font-bold text-emerald-300">Answer: 2.27 ms per cycle</p>
-            </article>
+            <WaveWorkedExample
+              example={{
+                title: "Finding wave speed",
+                problem: "A wave has frequency 24 Hz and wavelength 0.75 m. Find its speed.",
+                given: ["f = 24 Hz = 24 s⁻¹", "λ = 0.75 m"],
+                find: "Wave speed v.",
+                formula: ["v = fλ"],
+                substitution: ["v = (24 s⁻¹)(0.75 m)"],
+                calculation: ["v = 18 m/s"],
+                answer: "v = 18 m/s",
+              }}
+            />
+            <WaveWorkedExample
+              accent="violet"
+              example={{
+                title: "Finding period from frequency",
+                problem: "A tone has frequency 440 Hz. Find the time for one cycle.",
+                given: ["f = 440 Hz = 440 s⁻¹"],
+                find: "Period T.",
+                formula: ["T = 1/f"],
+                substitution: ["T = 1/(440 s⁻¹)"],
+                calculation: ["T ≈ 0.00227 s = 2.27 ms"],
+                answer: "T ≈ 2.27 × 10⁻³ s per cycle",
+              }}
+            />
+            <WaveWorkedExample
+              accent="amber"
+              example={{
+                title: "Comparing the fundamental and higher harmonics",
+                problem: "A string has L = 0.75 m and wave speed v = 120 m/s. Find the first three harmonic frequencies and compare them.",
+                given: ["L = 0.75 m", "v = 120 m/s"],
+                find: "f₁, f₂, and f₃ and their ratios.",
+                formula: ["fₙ = nv/(2L)", "fₙ = n f₁"],
+                substitution: ["f₁ = (1)(120)/(2 × 0.75)", "f₂ = 2f₁; f₃ = 3f₁"],
+                calculation: ["f₁ = 80 Hz", "f₂ = 160 Hz; f₃ = 240 Hz"],
+                answer: "The first three harmonics are 80 Hz, 160 Hz, and 240 Hz (1:2:3)",
+              }}
+            />
+            <WaveWorkedExample
+              accent="sky"
+              example={{
+                title: "Relating frequency to pitch",
+                problem: "Compare pure tones at 220 Hz and 440 Hz. Which has the higher pitch, and by what frequency ratio?",
+                given: ["f₁ = 220 Hz", "f₂ = 440 Hz"],
+                find: "Which tone has higher pitch and the ratio f₂/f₁.",
+                formula: ["Pitch increases with frequency.", "Frequency ratio = f₂/f₁"],
+                substitution: ["f₂/f₁ = (440 Hz)/(220 Hz)"],
+                calculation: ["f₂/f₁ = 2"],
+                answer: "The 440 Hz tone has the higher pitch and twice the frequency (one octave above in the usual musical scale).",
+              }}
+            />
+            <WaveWorkedExample
+              accent="violet"
+              example={{
+                title: "How harmonic content affects timbre",
+                problem: "A piano and a guitar play the same note with a 220 Hz fundamental. Their second and higher harmonics have different relative strengths. Explain why the notes sound different.",
+                given: ["Both fundamentals: f₁ = 220 Hz", "The instruments have different harmonic mixtures and amplitude envelopes."],
+                find: "Explain the difference in perceived sound quality.",
+                formula: ["For harmonic components, fₙ = n f₁"],
+                substitution: ["Second harmonic: f₂ = 2(220 Hz) = 440 Hz", "Third harmonic: f₃ = 3(220 Hz) = 660 Hz"],
+                calculation: ["The shared fundamental sets the same nominal pitch; differing harmonic amplitudes and how they change over time produce different tone colors."],
+                answer: "The piano and guitar can have the same pitch but distinct timbres because their harmonic spectra and sound envelopes differ.",
+              }}
+            />
           </div>
         </section>
 
         <section id="sound-pitch" className="mb-10 scroll-mt-28 rounded-3xl border border-sky-400/20 bg-[#111A2E] p-6 md:p-8">
-          <h2 className="text-2xl font-bold">3. Sound and pitch</h2>
-          <p className="mt-3 leading-7 text-slate-300">Pitch describes how high or low a sound seems and is related to frequency. Loudness is related to sound intensity and amplitude. The speed of sound depends on the medium and its conditions.</p>
-          <div className="mt-5 grid gap-4 sm:grid-cols-2"><div className="rounded-2xl bg-[#080D1B] p-5"><p className="font-bold text-sky-300">Higher pitch</p><p className="mt-2 text-sm text-slate-400">Higher frequency, like a whistle.</p></div><div className="rounded-2xl bg-[#080D1B] p-5"><p className="font-bold text-violet-300">Lower pitch</p><p className="mt-2 text-sm text-slate-400">Lower frequency, like a bass note.</p></div></div>
+          <h2 className="text-2xl font-bold">4. Sound characteristics</h2>
+          <p className="mt-3 leading-7 text-slate-300">
+            A sound is often described by its pitch, loudness, quality (timbre), and
+            duration. These characteristics arise from different aspects of the
+            pressure wave and how it changes over time.
+          </p>
+          <div className="mt-5 grid gap-4 sm:grid-cols-2">
+            <article className="rounded-2xl bg-[#080D1B] p-5">
+              <h3 className="font-bold text-sky-300">Pitch and frequency</h3>
+              <p className="mt-2 text-sm leading-6 text-slate-400">
+                Pitch is the perception of how high or low a sound is. For a
+                periodic tone, a higher fundamental frequency is heard as a
+                higher pitch and a lower frequency as a lower pitch. For example,
+                440 Hz is higher in pitch than 220 Hz; at the same medium and
+                conditions, the higher frequency also has the shorter wavelength
+                because v = fλ.
+              </p>
+            </article>
+            <article className="rounded-2xl bg-[#080D1B] p-5">
+              <h3 className="font-bold text-violet-300">Loudness and intensity</h3>
+              <p className="mt-2 text-sm leading-6 text-slate-400">
+                Amplitude describes the size of the pressure variation in a sound
+                wave. Greater amplitude generally means greater sound intensity
+                (power carried per unit area) and is usually perceived as louder.
+                Intensity is a measurable physical quantity; loudness is the
+                listener&apos;s perception and also depends on frequency, distance,
+                and hearing sensitivity.
+              </p>
+            </article>
+            <article className="rounded-2xl bg-[#080D1B] p-5">
+              <h3 className="font-bold text-amber-300">Quality or timbre</h3>
+              <p className="mt-2 text-sm leading-6 text-slate-400">
+                Timbre is the tone color that lets us distinguish instruments
+                and voices even when they play the same note at the same
+                fundamental frequency. A piano and a guitar playing 220 Hz share
+                a fundamental, but their overtones have different relative
+                strengths and their sounds build and fade differently. Those
+                spectral and time-envelope differences give each instrument its
+                characteristic sound.
+              </p>
+            </article>
+            <article className="rounded-2xl bg-[#080D1B] p-5">
+              <h3 className="font-bold text-emerald-300">Duration</h3>
+              <p className="mt-2 text-sm leading-6 text-slate-400">
+                Duration is how long a sound remains audible, from its onset to
+                its decay or stop. A brief hand clap and a sustained violin note
+                can have similar pitch yet differ strongly in duration and
+                overall character. The sound source and the way it is played
+                determine how quickly its amplitude rises and fades.
+              </p>
+            </article>
+          </div>
+          <div className="mt-5 rounded-2xl border border-violet-400/15 bg-violet-400/5 p-5">
+            <h3 className="font-bold text-violet-200">Fundamental, harmonics, and overtones</h3>
+            <p className="mt-2 text-sm leading-6 text-slate-300">
+              The fundamental is the lowest frequency in a periodic tone. For an
+              ideal string fixed at both ends, harmonics are integer multiples
+              of it: fₙ = n f₁. The second harmonic is 2f₁ and the third is 3f₁.
+              An overtone is any component above the fundamental: the second
+              harmonic is the first overtone, and the third harmonic is the
+              second overtone. In general instruments, overtones need not all be
+              exact integer multiples. The mix and strength of these components
+              contribute to timbre, while the fundamental chiefly determines
+              pitch.
+            </p>
+          </div>
           <div className="mt-5 rounded-2xl border border-white/10 bg-[#080D1B] p-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
@@ -331,6 +669,9 @@ export default function WavesSoundPage() {
               Tone frequency <span>{toneFrequency} Hz</span>
             </label>
             <input id="tone-frequency" type="range" min="110" max="880" step="1" value={toneFrequency} onChange={(event) => changeToneFrequency(Number(event.target.value))} className="mt-2 w-full accent-violet-400" />
+            <button type="button" onClick={() => changeToneFrequency(440)} className="mt-3 inline-flex min-h-10 items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-sm font-semibold text-slate-300 transition hover:bg-white/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-300">
+              <RotateCcw size={15} /> Reset tone frequency
+            </button>
             <button type="button" onClick={() => void toggleTone()} className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl border border-violet-300/30 bg-violet-300/10 px-4 py-2 font-semibold text-violet-200 transition hover:bg-violet-300/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-300">
               {tonePlaying ? <><Square size={16} /> Stop tone</> : <><Volume2 size={17} /> Play tone</>}
             </button>
@@ -343,7 +684,7 @@ export default function WavesSoundPage() {
             <div>
               <p className="text-sm font-semibold text-emerald-300">CHECK YOUR KNOWLEDGE</p>
               <h2 className="mt-2 text-2xl font-bold md:text-3xl">
-                Waves &amp; Sound · {questions.length} questions
+                Waves &amp; Sound · {quizAttempt.length} questions
               </h2>
               <p className="mt-2 text-sm leading-6 text-slate-400">
                 Answer every question. Your score and explanations appear after submission.
@@ -352,15 +693,15 @@ export default function WavesSoundPage() {
             <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-5 py-3">
               <p className="text-sm text-slate-300">Your score</p>
               <p className="text-2xl font-black text-emerald-300">
-                {submitted ? `${score} / ${questions.length}` : `${answeredCount} / ${questions.length}`}
+                {submitted ? `${score} / ${quizAttempt.length}` : `${answeredCount} / ${quizAttempt.length}`}
               </p>
             </div>
           </div>
-          <div className="mb-6 h-2 overflow-hidden rounded-full bg-white/10" role="progressbar" aria-label="Quiz questions answered" aria-valuemin={0} aria-valuemax={questions.length} aria-valuenow={answeredCount}>
-            <div className="h-full rounded-full bg-sky-400 transition-all" style={{ width: `${(answeredCount / questions.length) * 100}%` }} />
+          <div className="mb-6 h-2 overflow-hidden rounded-full bg-white/10" role="progressbar" aria-label="Quiz questions answered" aria-valuemin={0} aria-valuemax={quizAttempt.length} aria-valuenow={answeredCount}>
+            <div className="h-full rounded-full bg-sky-400 transition-all" style={{ width: `${(answeredCount / quizAttempt.length) * 100}%` }} />
           </div>
           <div className="space-y-5">
-            {questions.map((q, i) => (
+            {quizAttempt.map((q, i) => (
               <LessonQuizQuestion key={q.q} number={i + 1}>
                 <p className="font-semibold leading-6">{q.q}</p>
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -412,7 +753,7 @@ export default function WavesSoundPage() {
             {!submitted ? (
               <button
                 type="button"
-                disabled={Object.keys(answers).length !== questions.length}
+                disabled={Object.keys(answers).length !== quizAttempt.length}
                 onClick={handleSubmit}
                 className={QUIZ_SUBMIT_BUTTON_CLASS}
               >
@@ -461,11 +802,20 @@ export default function WavesSoundPage() {
                           ? "Result saved"
                           : saveState === "error"
                             ? "Could not save result"
-                            : "Quiz result"}
+                                : saveState === "guest"
+                                  ? "Quiz result · Not saved"
+                                  : "Quiz result"}
                   </p>
                   {saveMessage && <p className="mt-1 break-words text-sm leading-6 text-slate-400">{saveMessage}</p>}
-                  {saveState === "saved" && (
-                    <Link href="/dashboard" className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-sky-300 hover:text-sky-200">View dashboard <ArrowRight size={15} /></Link>
+                  {saveState === "guest" && (
+                    <p className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
+                      <Link className="font-semibold text-sky-300 hover:text-sky-200" href="/register">
+                        Create an account
+                      </Link>
+                      <Link className="font-semibold text-sky-300 hover:text-sky-200" href="/login">
+                        Log in
+                      </Link>
+                    </p>
                   )}
                 </div>
               </div>
@@ -475,7 +825,7 @@ export default function WavesSoundPage() {
             </div>
           )}
         </section>
-        <footer className="mt-8 flex flex-wrap justify-between gap-4 border-t border-white/10 pt-6 text-sm"><Link href="/lessons/temperature-heat" className="text-sky-300 hover:text-sky-200"><ArrowLeft size={16} className="mr-2 inline"/>Previous: Temperature & Heat</Link><Link href="/dashboard" className="text-sky-300 hover:text-sky-200">All topics <ArrowRight size={16} className="ml-2 inline"/></Link></footer>
+        <footer className="mt-8 flex flex-wrap justify-between gap-4 border-t border-white/10 pt-6 text-sm"><Link href="/lessons/temperature-heat" className="text-sky-300 hover:text-sky-200"><ArrowLeft size={16} className="mr-2 inline"/>Previous: Temperature & Heat</Link></footer>
         </div>
         </div>
       </div>

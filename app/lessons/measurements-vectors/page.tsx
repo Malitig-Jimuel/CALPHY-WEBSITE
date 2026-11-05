@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import type { PointerEvent as ReactPointerEvent, ReactNode } from "react";
 import { useState } from "react";
 import {
@@ -9,14 +8,9 @@ import {
   CheckCircle2,
   Lightbulb,
   RotateCcw,
-  Ruler,
-  Sigma,
-  Target,
   XCircle,
 } from "lucide-react";
 import LessonHeader from "../LessonHeader";
-import LessonNavigation from "../LessonNavigation";
-import LessonSidebar from "../LessonSidebar";
 import LessonProgressTracker from "../LessonProgressTracker";
 import LessonQuizFeedback from "../LessonQuizFeedback";
 import LessonQuizQuestion, {
@@ -26,19 +20,7 @@ import LessonQuizQuestion, {
   QUIZ_SUBMIT_BUTTON_CLASS,
 } from "../LessonQuizQuestion";
 import { useLessonQuizResult } from "../useLessonQuizResult";
-
-const lessonSections = [
-  { id: "measurement", label: "Measurement & quantities" },
-  { id: "units", label: "SI units & conversion" },
-  { id: "uncertainty", label: "Accuracy & uncertainty" },
-  { id: "dimensions", label: "Dimensional analysis" },
-  { id: "vector-intro", label: "Scalars & vectors" },
-  { id: "components", label: "Vector representation" },
-  { id: "operations", label: "Vector operations" },
-  { id: "problems", label: "Solving vector problems" },
-  { id: "formula-reference", label: "Formula reference" },
-  { id: "quiz", label: "Quiz" },
-];
+import { useShuffledQuestionOrder } from "../quizRandomization";
 
 const baseUnits = [
   { quantity: "Length", symbol: "m", unit: "meter", dimension: "[L]" },
@@ -249,6 +231,7 @@ const quiz = [
       "West is the negative x-direction, so Ax = −12 N and Ay = 0 N.",
   },
 ];
+const quizOptionCounts = quiz.map((question) => question.choices.length);
 
 type UnitKey = "km" | "m" | "cm" | "mm";
 const lengthFactors: Record<UnitKey, number> = {
@@ -285,29 +268,63 @@ function SectionHeading({
 function WorkedExample({
   title,
   problem,
-  steps,
+  solution,
   answer,
 }: {
   title: string;
   problem: string;
   steps: string[];
+  solution: {
+    given: string;
+    find: string;
+    formula: string;
+    substitution: string;
+    calculation: string;
+  };
   answer: string;
 }) {
+  const [open, setOpen] = useState(false);
+
   return (
     <article className="rounded-2xl border border-white/10 bg-[#080D1B] p-5">
       <p className="text-sm font-bold text-orange-300">{title}</p>
       <p className="mt-2 text-sm leading-6 text-slate-300">{problem}</p>
-      <ol className="mt-4 space-y-2 text-sm leading-6 text-slate-400">
-        {steps.map((step, index) => (
-          <li key={step} className="flex gap-3">
-            <span className="font-bold text-sky-300">{index + 1}.</span>
-            <span>{step}</span>
-          </li>
-        ))}
-      </ol>
-      <p className="mt-4 rounded-xl border border-emerald-400/15 bg-emerald-400/5 p-3 text-sm font-bold text-emerald-300">
-        {answer}
-      </p>
+      <button
+        type="button"
+        onClick={() => setOpen((previous) => !previous)}
+        aria-expanded={open}
+        className="mt-4 inline-flex items-center gap-2 rounded-lg border border-white/15 px-4 py-2 text-sm font-semibold transition hover:bg-white/5"
+      >
+        {open ? "Hide Solution" : "Show Solution"}
+      </button>
+      {open && (
+        <div className="mt-4 space-y-3 rounded-xl bg-white/[0.03] p-4 text-sm leading-6">
+          <div>
+            <p className="font-semibold text-sky-300">Given</p>
+            <p className="text-slate-400">{solution.given}</p>
+          </div>
+          <div>
+            <p className="font-semibold text-sky-300">Find</p>
+            <p className="text-slate-400">{solution.find}</p>
+          </div>
+          <div>
+            <p className="font-semibold text-sky-300">Formula</p>
+            <p className="text-slate-400">{solution.formula}</p>
+          </div>
+          <div>
+            <p className="font-semibold text-sky-300">Substitution</p>
+            <p className="text-slate-400">{solution.substitution}</p>
+          </div>
+          <div>
+            <p className="font-semibold text-sky-300">Calculation</p>
+            <p className="text-slate-400">{solution.calculation}</p>
+          </div>
+          <div>
+            <p className="font-semibold text-emerald-300">Final Answer</p>
+            <p className="font-bold text-emerald-300">{answer}</p>
+          </div>
+        </div>
+      )}
     </article>
   );
 }
@@ -345,6 +362,20 @@ export default function MeasurementsVectorsPage() {
     saveResult,
     resetResult,
   } = useLessonQuizResult();
+  const [quizOrder, reshuffleQuiz] =
+    useShuffledQuestionOrder(quizOptionCounts);
+  const quizAttempt = quizOrder.map(({ questionIndex, optionOrder }) => {
+    const question = quiz[questionIndex];
+
+    return {
+      ...question,
+      choices: optionOrder.map((optionIndex) => question.choices[optionIndex]),
+      answer: optionOrder.indexOf(question.answer),
+      questionIndex,
+      originalChoices: question.choices,
+      optionOrder,
+    };
+  });
   const toRadians = (degrees: number) => (degrees * Math.PI) / 180;
   const ax = magnitudeA * Math.cos(toRadians(angleA));
   const ay = magnitudeA * Math.sin(toRadians(angleA));
@@ -397,7 +428,7 @@ export default function MeasurementsVectorsPage() {
     }
   }
 
-  const score = quiz.reduce(
+  const score = quizAttempt.reduce(
     (total, question, index) =>
       total + (answers[index] === question.answer ? 1 : 0),
     0
@@ -406,28 +437,34 @@ export default function MeasurementsVectorsPage() {
 
   function convertUnits() {
     const value = Number(conversionValue);
-    if (!conversionValue.trim() || !Number.isFinite(value)) {
-      setConversionResult("Enter a valid finite number before converting.");
+    if (!conversionValue.trim() || !Number.isFinite(value) || value < 0) {
+      setConversionResult("Enter a finite, nonnegative length before converting.");
       return;
     }
 
     const converted =
       (value * lengthFactors[conversionFrom]) / lengthFactors[conversionTo];
+    if (!Number.isFinite(converted)) {
+      setConversionResult("The converted length is outside the supported numeric range.");
+      return;
+    }
     setConversionResult(
       `${value} ${conversionFrom} = ${Number(converted.toPrecision(8))} ${conversionTo}`
     );
   }
 
   function submitQuiz() {
-    if (answeredCount !== quiz.length) return;
+    if (answeredCount !== quizAttempt.length) return;
     setSubmitted(true);
     void saveResult(
       "measurements-vectors",
-      quiz.map((_, index) => answers[index] ?? -1),
-      quiz.map((question) => ({
+      quizAttempt.map((_, index) => answers[index] ?? -1),
+      quizAttempt.map((question) => ({
         question: question.question,
-        choices: question.choices,
+        choices: question.originalChoices,
         explanation: question.explanation,
+        questionIndex: question.questionIndex,
+        optionOrder: question.optionOrder,
       }))
     );
   }
@@ -436,16 +473,15 @@ export default function MeasurementsVectorsPage() {
     setAnswers({});
     setSubmitted(false);
     resetResult();
+    reshuffleQuiz();
   }
 
   return (
-    <main className="flex h-dvh flex-col overflow-hidden bg-[#080D1B] text-slate-100">
-      <LessonNavigation />
-      <div className="grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] md:grid-rows-1 md:grid-cols-[250px_minmax(0,1fr)]">
-        <LessonSidebar sections={lessonSections} />
+    <main className="flex h-full min-h-0 flex-col overflow-hidden bg-[#080D1B] text-slate-100">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <div
           id="lesson-main-scroll"
-          className="min-w-0 overflow-y-auto overscroll-contain px-4 py-6 sm:px-6 lg:px-10"
+          className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain px-4 py-6 sm:px-6 lg:px-10"
         >
           <div className="mx-auto w-full max-w-[1600px] space-y-10">
             <LessonProgressTracker lessonSlug="measurements-vectors" />
@@ -458,23 +494,8 @@ export default function MeasurementsVectorsPage() {
                   Measurements <span className="text-sky-400">&amp; Vectors</span>
                 </>
               }
-              description="Build a reliable foundation in measurement, units, uncertainty, dimensional reasoning, and two-dimensional vectors. Work through examples, try the interactive tools, then check your understanding."
-            >
-              <div className="flex flex-wrap gap-3 text-sm">
-                <span className="rounded-full border border-sky-400/20 bg-sky-400/10 px-4 py-2 text-sky-300">
-                  <Ruler className="mr-2 inline" size={15} />
-                  Measurement
-                </span>
-                <span className="rounded-full border border-violet-400/20 bg-violet-400/10 px-4 py-2 text-violet-300">
-                  <Sigma className="mr-2 inline" size={15} />
-                  Units & dimensions
-                </span>
-                <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-4 py-2 text-emerald-300">
-                  <Target className="mr-2 inline" size={15} />
-                  Vector simulation
-                </span>
-              </div>
-            </LessonHeader>
+              description="Build a reliable foundation in measurement, units, uncertainty, and two-dimensional vectors. Work through examples, try the interactive tools, then check your understanding."
+            />
 
             <div className="rounded-xl border border-sky-400/15 bg-sky-400/5 p-4">
               <p className="flex items-center gap-2 text-sm font-bold text-sky-300">
@@ -482,8 +503,8 @@ export default function MeasurementsVectorsPage() {
               </p>
               <p className="mt-2 text-sm leading-6 text-slate-400">
                 Read the concept cards, follow the worked solutions line by
-                line, and try the practice activities before using the section
-                navigation to revisit topics.
+                line, and try the practice activities before using the lesson
+                links in the sidebar to explore another topic.
               </p>
             </div>
 
@@ -536,6 +557,13 @@ export default function MeasurementsVectorsPage() {
                     "Its SI units are meters per second, combining length and time.",
                     "Therefore speed is a derived quantity; its dimensions are [LT⁻¹].",
                   ]}
+                  solution={{
+                    given: "A running speed of 12 m/s.",
+                    find: "Whether speed is fundamental or derived, and whether it is scalar or vector.",
+                    formula: "Speed = distance ÷ elapsed time.",
+                    substitution: "No distance or elapsed-time values are provided to substitute.",
+                    calculation: "The unit m/s combines length and time ([LT⁻¹]), so speed is derived; speed alone is scalar.",
+                  }}
                   answer="Classification: derived quantity; scalar if only speed (not velocity) is reported."
                 />
                 <WorkedExample
@@ -546,6 +574,13 @@ export default function MeasurementsVectorsPage() {
                     "The physical quantity is time; the numerical value is 8.42.",
                     "The unit is the second, symbol s.",
                   ]}
+                  solution={{
+                    given: "A stopwatch reading of 8.42 s.",
+                    find: "The measured quantity, numerical value, and unit.",
+                    formula: "No calculation formula is needed to identify the measurement.",
+                    substitution: "Read the stopwatch value as 8.42 and its unit as seconds.",
+                    calculation: "The measured quantity is elapsed time.",
+                  }}
                   answer="Report: elapsed time = 8.42 s."
                 />
               </div>
@@ -644,6 +679,13 @@ export default function MeasurementsVectorsPage() {
                     "325 cm × (1 m / 100 cm) = 3.25 m.",
                     "The centimeter units cancel, leaving meters.",
                   ]}
+                  solution={{
+                    given: "325 cm; 1 m = 100 cm.",
+                    find: "The length in meters.",
+                    formula: "Multiply by a conversion factor equal to one: (1 m / 100 cm).",
+                    substitution: "325 cm × (1 m / 100 cm).",
+                    calculation: "Cancel cm and calculate 325 ÷ 100 = 3.25 m.",
+                  }}
                   answer="325 cm = 3.25 m."
                 />
                 <WorkedExample
@@ -654,6 +696,13 @@ export default function MeasurementsVectorsPage() {
                     "Cancel km and h; calculate 90,000 / 3,600.",
                     "The remaining unit is m/s.",
                   ]}
+                  solution={{
+                    given: "90 km/h.",
+                    find: "The speed in meters per second.",
+                    formula: "Use 1 km = 1,000 m and 1 h = 3,600 s.",
+                    substitution: "90 km/h × (1,000 m / 1 km) × (1 h / 3,600 s).",
+                    calculation: "Cancel km and h; 90,000 ÷ 3,600 = 25 m/s.",
+                  }}
                   answer="90 km/h = 25 m/s."
                 />
               </div>
@@ -669,9 +718,23 @@ export default function MeasurementsVectorsPage() {
                     Value
                     <input
                       type="number"
+                      min="0"
                       step="any"
+                      aria-describedby={
+                        conversionResult?.startsWith("Enter a finite") ||
+                        conversionResult?.startsWith("The converted length")
+                          ? "conversion-result"
+                          : undefined
+                      }
+                      aria-invalid={
+                        conversionResult?.startsWith("Enter a finite") === true ||
+                        conversionResult?.startsWith("The converted length") === true
+                      }
                       value={conversionValue}
-                      onChange={(event) => setConversionValue(event.target.value)}
+                      onChange={(event) => {
+                        setConversionValue(event.target.value);
+                        setConversionResult(null);
+                      }}
                       className="mt-2 w-full rounded-xl border border-white/10 bg-[#080D1B] px-3 py-2 text-white outline-none focus:border-cyan-300"
                     />
                   </label>
@@ -679,7 +742,10 @@ export default function MeasurementsVectorsPage() {
                     From
                     <select
                       value={conversionFrom}
-                      onChange={(event) => setConversionFrom(event.target.value as UnitKey)}
+                      onChange={(event) => {
+                        setConversionFrom(event.target.value as UnitKey);
+                        setConversionResult(null);
+                      }}
                       className="mt-2 block rounded-xl border border-white/10 bg-[#080D1B] px-3 py-2 text-white"
                     >
                       {Object.keys(lengthFactors).map((unit) => <option key={unit}>{unit}</option>)}
@@ -690,7 +756,10 @@ export default function MeasurementsVectorsPage() {
                     Unit
                     <select
                       value={conversionTo}
-                      onChange={(event) => setConversionTo(event.target.value as UnitKey)}
+                      onChange={(event) => {
+                        setConversionTo(event.target.value as UnitKey);
+                        setConversionResult(null);
+                      }}
                       className="mt-2 block rounded-xl border border-white/10 bg-[#080D1B] px-3 py-2 text-white"
                     >
                       {Object.keys(lengthFactors).map((unit) => <option key={unit}>{unit}</option>)}
@@ -703,9 +772,31 @@ export default function MeasurementsVectorsPage() {
                   >
                     Convert
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setConversionValue("2.5");
+                      setConversionFrom("km");
+                      setConversionTo("m");
+                      setConversionResult(null);
+                    }}
+                    className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-4 py-2.5 text-sm font-semibold text-slate-300 transition hover:bg-white/5"
+                  >
+                    <RotateCcw size={14} /> Reset
+                  </button>
                 </div>
                 {conversionResult && (
-                  <p className="mt-4 rounded-xl bg-[#080D1B] p-3 text-sm font-semibold text-cyan-200" aria-live="polite">
+                  <p
+                    id="conversion-result"
+                    className="mt-4 rounded-xl bg-[#080D1B] p-3 text-sm font-semibold text-cyan-200"
+                    aria-live="polite"
+                    role={
+                      conversionResult.startsWith("Enter a finite") ||
+                      conversionResult.startsWith("The converted length")
+                        ? "alert"
+                        : undefined
+                    }
+                  >
                     {conversionResult}
                   </p>
                 )}
@@ -780,6 +871,13 @@ export default function MeasurementsVectorsPage() {
                     "The next digit is 4, which is less than 5, so the 8 does not change.",
                     "Keep the place value clear by using scientific notation if needed.",
                   ]}
+                  solution={{
+                    given: "0.006384, rounded to three significant figures.",
+                    find: "The value rounded to three significant figures.",
+                    formula: "Keep the first three significant digits and use the next digit to decide whether to round.",
+                    substitution: "The first three significant digits are 6, 3, and 8; the next digit is 4.",
+                    calculation: "Since 4 is less than 5, retain 8: 0.00638.",
+                  }}
                   answer="0.006384 ≈ 0.00638 (3 significant figures)."
                 />
                 <WorkedExample
@@ -791,6 +889,13 @@ export default function MeasurementsVectorsPage() {
                     "Addition: 12.11 + 0.3 = 12.41; the least precise addend is to the tenths place.",
                     "Round to the tenths place: 12.4.",
                   ]}
+                  solution={{
+                    given: "2.34 × 1.2 and 12.11 + 0.3.",
+                    find: "Each result rounded according to the appropriate precision rule.",
+                    formula: "For multiplication, use the fewest significant figures; for addition, use the least precise decimal place.",
+                    substitution: "2.34 × 1.2 = 2.808 (2 significant figures); 12.11 + 0.3 = 12.41 (tenths place).",
+                    calculation: "Round 2.808 to 2.8 and 12.41 to 12.4.",
+                  }}
                   answer="2.34 × 1.2 = 2.8; 12.11 + 0.3 = 12.4."
                 />
                 <WorkedExample
@@ -801,6 +906,13 @@ export default function MeasurementsVectorsPage() {
                     "If the smallest readable interval is 0.1 cm, the last digit is uncertain by about half an interval.",
                     "State the uncertainty and unit so the precision is explicit.",
                   ]}
+                  solution={{
+                    given: "Measured length 12.4 cm; ruler divisions are 1 mm (0.1 cm).",
+                    find: "A report that includes the reading uncertainty.",
+                    formula: "For an ideal reading, uncertainty is about half the smallest interval.",
+                    substitution: "Half of 0.1 cm is 0.05 cm.",
+                    calculation: "Report the measured length with the uncertainty and unit: (12.4 ± 0.05) cm.",
+                  }}
                   answer="A suitable report is (12.4 ± 0.05) cm, given 1 mm scale divisions and ideal reading."
                 />
               </div>
@@ -840,73 +952,9 @@ export default function MeasurementsVectorsPage() {
               </div>
             </section>
 
-            <section id="dimensions" className="scroll-mt-6">
-              <SectionHeading
-                number="04"
-                title="Dimensional Analysis"
-                subtitle="Dimensions describe the physical nature of a quantity and let us test equations and convert units without relying on memorized shortcuts."
-              />
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {[
-                  ["Length", "[L]"],
-                  ["Mass", "[M]"],
-                  ["Time", "[T]"],
-                  ["Velocity", "[LT⁻¹]"],
-                  ["Acceleration", "[LT⁻²]"],
-                  ["Force", "[MLT⁻²]"],
-                ].map(([quantity, dimension]) => (
-                  <div key={quantity} className="rounded-xl border border-white/10 bg-[#10182B] p-4">
-                    <p className="text-sm text-slate-400">{quantity}</p>
-                    <p className="mt-2 font-mono text-lg font-bold text-sky-300">{dimension}</p>
-                  </div>
-                ))}
-              </div>
-              <p className="mt-4 rounded-xl border border-sky-400/15 bg-sky-400/5 p-4 text-sm leading-6 text-slate-300">
-                An equation is dimensionally consistent only when every term
-                being added has the same dimensions and both sides of the
-                equation have matching dimensions. Dimensional analysis checks
-                consistency but cannot determine dimensionless constants or
-                prove that a physically correct equation has the right form.
-              </p>
-
-              <div className="mt-5 grid gap-4 lg:grid-cols-2">
-                <WorkedExample
-                  title="Worked example 1 · check an equation"
-                  problem="Test whether s = ut + ½at² is dimensionally consistent."
-                  steps={[
-                    "[s] = [L].",
-                    "[ut] = [LT⁻¹][T] = [L].",
-                    "[at²] = [LT⁻²][T²] = [L]; the factor ½ is dimensionless.",
-                    "Both terms on the right and the left side have dimension [L].",
-                  ]}
-                  answer="The equation is dimensionally consistent."
-                />
-                <WorkedExample
-                  title="Worked example 2 · infer a period relation"
-                  problem="Suppose a period T depends on length L and gravitational acceleration g as T ∝ Lᵃgᵇ. Find a and b."
-                  steps={[
-                    "[T] = [L]ᵃ[LT⁻²]ᵇ = [L]ᵃ⁺ᵇ[T]⁻²ᵇ.",
-                    "Match time powers: −2b = 1, so b = −½.",
-                    "Match length powers: a + b = 0, so a = ½.",
-                  ]}
-                  answer="T ∝ √(L/g). Dimensional analysis does not determine the dimensionless constant."
-                />
-                <WorkedExample
-                  title="Worked example 3 · convert acceleration units"
-                  problem="Convert 36 km/h² to m/s²."
-                  steps={[
-                    "Use 36 km/h² × (1,000 m / 1 km) × (1 h / 3,600 s)².",
-                    "The units cancel to m/s².",
-                    "Numerically, 36 × 1,000 / 3,600² = 0.002777…",
-                  ]}
-                  answer="36 km/h² ≈ 2.78 × 10⁻³ m/s²."
-                />
-              </div>
-            </section>
-
             <section id="vector-intro" className="scroll-mt-6">
               <SectionHeading
-                number="05"
+                number="04"
                 title="Introduction to Scalars and Vectors"
                 subtitle="Whether a quantity needs a direction determines how it should be described and calculated."
               />
@@ -936,6 +984,13 @@ export default function MeasurementsVectorsPage() {
                     "Choose east as positive. Displacement is +40 m − 30 m = +10 m.",
                     "A positive result means the net direction is east.",
                   ]}
+                  solution={{
+                    given: "40 m east, then 30 m west.",
+                    find: "Total distance traveled and net displacement.",
+                    formula: "Distance = total path length; displacement = signed position change.",
+                    substitution: "Distance = 40 m + 30 m; displacement = +40 m − 30 m (east positive).",
+                    calculation: "Distance = 70 m; displacement = +10 m, which is east.",
+                  }}
                   answer="Distance = 70 m; displacement = 10 m east."
                 />
                 <div className="rounded-2xl border border-cyan-400/15 bg-cyan-400/5 p-5">
@@ -975,7 +1030,7 @@ export default function MeasurementsVectorsPage() {
 
             <section id="components" className="scroll-mt-6">
               <SectionHeading
-                number="06"
+                number="05"
                 title="Vector Representation and Components"
                 subtitle="A vector can be drawn as a directed arrow or expressed as perpendicular components in a chosen coordinate system."
               />
@@ -1032,6 +1087,13 @@ export default function MeasurementsVectorsPage() {
                     "Ay = A sin θ = 20 sin 35° = 11.47 m.",
                     "Check magnitude: √(16.38² + 11.47²) ≈ 20.0 m.",
                   ]}
+                  solution={{
+                    given: "Displacement magnitude A = 20 m at θ = 35° north of east.",
+                    find: "The east (Ax) and north (Ay) components.",
+                    formula: "Ax = A cos θ; Ay = A sin θ.",
+                    substitution: "Ax = 20 cos 35°; Ay = 20 sin 35°.",
+                    calculation: "Ax ≈ 16.38 m and Ay ≈ 11.47 m; their components give a magnitude of about 20.0 m.",
+                  }}
                   answer="Ax ≈ 16.4 m east; Ay ≈ 11.5 m north."
                 />
                 <WorkedExample
@@ -1043,6 +1105,13 @@ export default function MeasurementsVectorsPage() {
                     "Reference angle α = tan⁻¹(|4/−3|) ≈ 53.1°.",
                     "Measured counterclockwise from +x, θ = 180° − 53.1° = 126.9°.",
                   ]}
+                  solution={{
+                    given: "Ax = −3 m and Ay = 4 m.",
+                    find: "The vector's magnitude and direction measured counterclockwise from +x.",
+                    formula: "A = √(Ax² + Ay²); determine the angle using the component signs and reference angle.",
+                    substitution: "A = √((-3)² + 4²); α = tan⁻¹(|4/−3|).",
+                    calculation: "A = 5 m; the vector is in quadrant II, so θ = 180° − 53.1° = 126.9°.",
+                  }}
                   answer="A = 5 m at 126.9° counterclockwise from +x."
                 />
               </div>
@@ -1050,7 +1119,7 @@ export default function MeasurementsVectorsPage() {
 
             <section id="operations" className="scroll-mt-6">
               <SectionHeading
-                number="07"
+                number="06"
                 title="Vector Operations"
                 subtitle="Add vectors by combining like directions; subtract by adding the reversed vector. Component arithmetic works for any angle."
               />
@@ -1099,6 +1168,13 @@ export default function MeasurementsVectorsPage() {
                     "R = A + B = 9 + (−4) = +5 m.",
                     "The positive sign indicates east.",
                   ]}
+                  solution={{
+                    given: "9 m east followed by 4 m west.",
+                    find: "The resultant displacement.",
+                    formula: "R = A + B, using signed components along the east-west line.",
+                    substitution: "R = (+9 m) + (−4 m).",
+                    calculation: "R = +5 m; positive is east.",
+                  }}
                   answer="Resultant displacement = 5 m east."
                 />
                 <WorkedExample
@@ -1109,6 +1185,13 @@ export default function MeasurementsVectorsPage() {
                     "R = √(Rx² + Ry²) = √(9 + 16) = 5 N.",
                     "θ = tan⁻¹(4/3) = 53.1° north of east.",
                   ]}
+                  solution={{
+                    given: "3 N east and 4 N north.",
+                    find: "The resultant force magnitude and direction.",
+                    formula: "R = √(Rx² + Ry²); θ = tan⁻¹(Ry/Rx).",
+                    substitution: "R = √(3² + 4²); θ = tan⁻¹(4/3).",
+                    calculation: "R = 5 N and θ = 53.1° north of east.",
+                  }}
                   answer="Resultant force = 5 N at 53.1° north of east."
                 />
                 <WorkedExample
@@ -1119,6 +1202,13 @@ export default function MeasurementsVectorsPage() {
                     "Draw R from the first tail to the final arrowhead. The legs form a right triangle.",
                     "R = √(3² + 4²) = 5 m and θ = tan⁻¹(4/3) = 53.1° north of east.",
                   ]}
+                  solution={{
+                    given: "3 m east followed head-to-tail by 4 m north.",
+                    find: "The resultant vector's magnitude and direction.",
+                    formula: "The perpendicular legs give R = √(Rx² + Ry²) and θ = tan⁻¹(Ry/Rx).",
+                    substitution: "R = √(3² + 4²); θ = tan⁻¹(4/3).",
+                    calculation: "Draw R from the first tail to the final arrowhead: R = 5 m at 53.1° north of east.",
+                  }}
                   answer="Head-to-tail resultant = 5 m at 53.1° north of east."
                 />
                 <WorkedExample
@@ -1130,6 +1220,13 @@ export default function MeasurementsVectorsPage() {
                     "R = √(5² + 6²) = √61 = 7.81 N.",
                     "θ = tan⁻¹(6/5) = 50.2° north of east.",
                   ]}
+                  solution={{
+                    given: "Two vectors, 5 N east and 6 N north, share a tail.",
+                    find: "The parallelogram diagonal's magnitude and direction.",
+                    formula: "Complete the parallelogram from a shared tail; its diagonal is the resultant. R = √(Rx² + Ry²); θ = tan⁻¹(Ry/Rx).",
+                    substitution: "R = √(5² + 6²); θ = tan⁻¹(6/5).",
+                    calculation: "R = √61 ≈ 7.81 N at 50.2° north of east.",
+                  }}
                   answer="Parallelogram resultant = 7.81 N at 50.2° north of east."
                 />
                 <WorkedExample
@@ -1140,6 +1237,13 @@ export default function MeasurementsVectorsPage() {
                     "Multiplying by −0.5 scales the magnitude by 0.5 and reverses direction by 180°.",
                     "The reversed direction is 30° + 180° = 210°.",
                   ]}
+                  solution={{
+                    given: "A = 3 m at 30° above +x.",
+                    find: "The vectors 2A and −0.5A.",
+                    formula: "Scalar multiplication scales magnitude; a negative scalar reverses direction.",
+                    substitution: "2A scales 3 m by 2; −0.5A scales it by 0.5 and rotates the direction by 180°.",
+                    calculation: "2A = 6 m at 30°; −0.5A = 1.5 m at 210°.",
+                  }}
                   answer="2A = 6 m at 30°; −0.5A = 1.5 m at 210°."
                 />
               </div>
@@ -1236,7 +1340,7 @@ export default function MeasurementsVectorsPage() {
 
             <section id="problems" className="scroll-mt-6">
               <SectionHeading
-                number="08"
+                number="07"
                 title="Solving Vector Problems"
                 subtitle="Translate the situation into a coordinate system, solve with components, and report a magnitude with a meaningful direction."
               />
@@ -1249,6 +1353,13 @@ export default function MeasurementsVectorsPage() {
                     "R = √(120² + 50²) m = √16,900 m = 130 m.",
                     "θ = tan⁻¹(50/120) = 22.6° from east toward north.",
                   ]}
+                  solution={{
+                    given: "x = +120 m east and y = +50 m north.",
+                    find: "The displacement magnitude and direction.",
+                    formula: "R = √(x² + y²); θ = tan⁻¹(y/x).",
+                    substitution: "R = √(120² + 50²); θ = tan⁻¹(50/120).",
+                    calculation: "R = 130 m at 22.6° north of east.",
+                  }}
                   answer="Displacement = 130 m at 22.6° north of east."
                 />
                 <WorkedExample
@@ -1259,6 +1370,13 @@ export default function MeasurementsVectorsPage() {
                     "Average velocity v = Δx/Δt = 36 m / 6 s = +6 m/s.",
                     "The positive sign indicates the +x direction.",
                   ]}
+                  solution={{
+                    given: "x₁ = −10 m, x₂ = 26 m, and Δt = 6 s.",
+                    find: "The average velocity.",
+                    formula: "Δx = x₂ − x₁; v̄ = Δx/Δt.",
+                    substitution: "Δx = 26 − (−10) = +36 m; v̄ = 36 m / 6 s.",
+                    calculation: "v̄ = +6 m/s, in the +x direction.",
+                  }}
                   answer="Average velocity = 6 m/s in the +x direction."
                 />
                 <WorkedExample
@@ -1269,6 +1387,13 @@ export default function MeasurementsVectorsPage() {
                     "Average acceleration a = Δv/Δt = 12 m/s / 4 s.",
                     "A positive result means acceleration is east.",
                   ]}
+                  solution={{
+                    given: "Initial velocity 2 m/s east, final velocity 14 m/s east, and elapsed time 4 s.",
+                    find: "The average acceleration.",
+                    formula: "ā = Δv/Δt.",
+                    substitution: "Δv = 14 − 2 = +12 m/s; ā = 12 m/s / 4 s.",
+                    calculation: "ā = 3 m/s² east.",
+                  }}
                   answer="Average acceleration = 3 m/s² east."
                 />
                 <WorkedExample
@@ -1279,6 +1404,13 @@ export default function MeasurementsVectorsPage() {
                     "Fnet = F₁ + F₂ = 18 − 7 = +11 N.",
                     "The net force points east; mass would be needed to find acceleration.",
                   ]}
+                  solution={{
+                    given: "18 N east and 7 N west.",
+                    find: "The net force.",
+                    formula: "Fnet = sum of signed forces along the east-west line.",
+                    substitution: "Fnet = (+18 N) + (−7 N).",
+                    calculation: "Fnet = +11 N, directed east; mass would be needed to find acceleration.",
+                  }}
                   answer="Net force = 11 N east."
                 />
               </div>
@@ -1286,7 +1418,7 @@ export default function MeasurementsVectorsPage() {
 
             <section id="formula-reference" className="scroll-mt-6">
               <SectionHeading
-                number="09"
+                number="08"
                 title="Formula Reference"
                 subtitle="Use each relationship only when its assumptions fit the problem. Keep units consistent and include direction for vector quantities."
               />
@@ -1324,15 +1456,15 @@ export default function MeasurementsVectorsPage() {
                 <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-5 py-3">
                   <p className="text-sm text-slate-300">Your score</p>
                   <p className="text-2xl font-black text-emerald-300">
-                    {submitted ? `${score} / ${quiz.length}` : `${answeredCount} / ${quiz.length}`}
+                    {submitted ? `${score} / ${quizAttempt.length}` : `${answeredCount} / ${quizAttempt.length}`}
                   </p>
                 </div>
               </div>
-              <div className="mb-6 h-2 overflow-hidden rounded-full bg-white/10" role="progressbar" aria-label="Quiz questions answered" aria-valuemin={0} aria-valuemax={quiz.length} aria-valuenow={answeredCount}>
-                <div className="h-full rounded-full bg-sky-400 transition-all" style={{ width: `${(answeredCount / quiz.length) * 100}%` }} />
+              <div className="mb-6 h-2 overflow-hidden rounded-full bg-white/10" role="progressbar" aria-label="Quiz questions answered" aria-valuemin={0} aria-valuemax={quizAttempt.length} aria-valuenow={answeredCount}>
+                <div className="h-full rounded-full bg-sky-400 transition-all" style={{ width: `${(answeredCount / quizAttempt.length) * 100}%` }} />
               </div>
               <div className="space-y-5">
-                {quiz.map((item, index) => (
+                {quizAttempt.map((item, index) => (
                   <LessonQuizQuestion key={item.question} number={index + 1}>
                     <p className="font-semibold leading-6">{item.question}</p>
                     <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -1376,14 +1508,14 @@ export default function MeasurementsVectorsPage() {
                   <>
                     <button
                       type="button"
-                      disabled={answeredCount !== quiz.length}
+                      disabled={answeredCount !== quizAttempt.length}
                       onClick={submitQuiz}
                       className={QUIZ_SUBMIT_BUTTON_CLASS}
                     >
                       Submit quiz <ArrowRight size={18} />
                     </button>
                     <span className="text-sm text-slate-400">
-                      {answeredCount} / {quiz.length} answered
+                      {answeredCount} / {quizAttempt.length} answered
                     </span>
                   </>
                 ) : (
@@ -1398,7 +1530,7 @@ export default function MeasurementsVectorsPage() {
                     {score >= 12 ? "Knowledge check passed" : "Keep practicing"}
                   </p>
                   <p className="mt-1 text-sm leading-6 text-slate-300">
-                    You scored {score} out of {quiz.length}. A score of 12/20 (60%) or higher completes this module.
+                    You scored {score} out of {quizAttempt.length}. A score of 12/20 (60%) or higher completes this module.
                   </p>
                 </div>
               )}
@@ -1409,11 +1541,13 @@ export default function MeasurementsVectorsPage() {
                 onRetry={() =>
                   void saveResult(
                     "measurements-vectors",
-                    quiz.map((_, index) => answers[index] ?? -1),
-                    quiz.map((question) => ({
+                    quizAttempt.map((_, index) => answers[index] ?? -1),
+                    quizAttempt.map((question) => ({
                       question: question.question,
-                      choices: question.choices,
+                      choices: question.originalChoices,
                       explanation: question.explanation,
+                      questionIndex: question.questionIndex,
+                      optionOrder: question.optionOrder,
                     }))
                   )
                 }
@@ -1422,12 +1556,6 @@ export default function MeasurementsVectorsPage() {
 
             <footer className="flex flex-wrap items-center justify-between gap-4 border-t border-white/10 pt-7 text-sm">
               <p className="text-slate-500">Module 01 · Measurements &amp; Vectors</p>
-              <Link
-                href="/dashboard"
-                className="rounded-xl border border-white/10 px-4 py-3 font-semibold text-slate-200 transition hover:bg-white/5"
-              >
-                Back to all topics
-              </Link>
             </footer>
           </div>
         </div>
@@ -1467,7 +1595,7 @@ function VectorControl({
       <label htmlFor={magnitudeId} className="mt-4 flex justify-between text-sm text-slate-400">
         Magnitude <span>{magnitude} m</span>
       </label>
-      <input id={magnitudeId} type="range" min="0" max="20" step="1" value={magnitude} onChange={(event) => onMagnitudeChange(Number(event.target.value))} className={`mt-2 w-full ${accentColor}`} />
+      <input id={magnitudeId} type="range" min="0" max="20" step="0.1" value={magnitude} onChange={(event) => onMagnitudeChange(Number(event.target.value))} className={`mt-2 w-full ${accentColor}`} />
       <label htmlFor={angleId} className="mt-4 flex justify-between text-sm text-slate-400">
         Direction <span>{angle}°</span>
       </label>

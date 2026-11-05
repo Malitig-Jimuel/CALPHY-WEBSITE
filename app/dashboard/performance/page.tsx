@@ -8,13 +8,13 @@ import PerformanceChart, {
   type PerformancePoint,
 } from "../_components/PerformanceChart";
 import {
-  dashboardLessons,
   getAssociatedLesson,
   getAttemptPercentage,
   getQuizTitle,
   requireDashboardUser,
 } from "../_lib";
 import { prisma } from "@/lib/prisma";
+import { lessons } from "../../lessonModules";
 
 type AttemptRecord = {
   id: string;
@@ -73,7 +73,7 @@ async function PerformanceContent() {
       ),
     }));
 
-  const lessonBreakdown = dashboardLessons.map((lesson) => {
+  const lessonBreakdown = lessons.map((lesson) => {
     const lessonAttempts = attempts.filter(
       (attempt) => attempt.quizId === lesson.slug
     );
@@ -109,7 +109,7 @@ async function PerformanceContent() {
   return (
     <DashboardPageShell
       title="Performance"
-      description="Explore your quiz scores over time and see how your dashboard average is calculated."
+      description="Explore your quiz scores over time and see how your overall average is calculated."
     >
       {attempts.length === 0 ? (
         <div className="rounded-2xl border border-white/10 bg-[#10182B] px-6 py-12 text-center">
@@ -119,17 +119,17 @@ async function PerformanceContent() {
             save a quiz.
           </p>
           <Link
-            href="/dashboard"
+            href="/home"
             className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-xl bg-sky-400 px-4 py-2.5 text-sm font-bold text-slate-950 hover:bg-sky-300"
           >
-            Go to dashboard <ArrowRight size={16} />
+            Go to Home <ArrowRight size={16} />
           </Link>
         </div>
       ) : (
         <>
           <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
             <MetricCard
-              label={`Dashboard average · latest ${recentAttempts.length}`}
+              label={`Overall average · latest ${recentAttempts.length}`}
               value={`${Math.round((recentAverage ?? 0) * 100)}%`}
             />
             <MetricCard label="Total quiz attempts" value={`${attempts.length}`} />
@@ -151,7 +151,7 @@ async function PerformanceContent() {
           <section className="mt-6 rounded-2xl border border-white/10 bg-[#10182B] p-5 sm:p-6">
             <h2 className="text-lg font-bold">How your average is calculated</h2>
             <p className="mt-2 text-sm leading-6 text-slate-400">
-              This matches the Dashboard: it takes the arithmetic mean of your
+              Your average is the arithmetic mean of your
               most recent ten saved quiz percentages (or all attempts if you
               have fewer than ten). Each attempt percentage is its score
               divided by its question count; the final average is rounded to a
@@ -290,7 +290,7 @@ async function PerformanceContent() {
             ) && (
               <p className="border-t border-white/10 p-5 text-sm text-slate-400 sm:px-6">
                 Quick Physics Challenge attempts are mixed-topic quizzes and
-                are included in the chart and dashboard average, but not in an
+                are included in the chart and overall average, but not in an
                 individual lesson breakdown.
               </p>
             )}

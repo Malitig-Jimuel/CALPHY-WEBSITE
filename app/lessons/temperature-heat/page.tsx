@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeft,
   ArrowRight,
@@ -18,8 +18,6 @@ import {
 } from "lucide-react";
 import LessonQuizFeedback from "../LessonQuizFeedback";
 import LessonHeader from "../LessonHeader";
-import LessonNavigation from "../LessonNavigation";
-import LessonSidebar from "../LessonSidebar";
 import LessonProgressTracker from "../LessonProgressTracker";
 import LessonQuizQuestion, {
   getQuizOptionClass,
@@ -28,16 +26,7 @@ import LessonQuizQuestion, {
   QUIZ_SUBMIT_BUTTON_CLASS,
 } from "../LessonQuizQuestion";
 import { useLessonQuizResult } from "../useLessonQuizResult";
-
-const lessonSections = [
-  { id: "temperature-heat", label: "Temperature & heat" },
-  { id: "heat-transfer", label: "Heat transfer" },
-  { id: "temperature-converter", label: "Temperature converter" },
-  { id: "thermal-expansion", label: "Thermal expansion" },
-  { id: "specific-heat", label: "Specific heat" },
-  { id: "worked-examples", label: "Worked examples" },
-  { id: "quiz", label: "Quiz" },
-];
+import { useShuffledQuestionOrder } from "../quizRandomization";
 
 type HeatTransferMode = "conduction" | "convection" | "radiation";
 
@@ -230,6 +219,7 @@ const questions = [
       "One calorie is the energy needed to raise the temperature of 1 gram of water by 1 Celsius degree: 1 cal = 4.186 J. (The British thermal unit, Btu, is for 1 pound of water by 1 Fahrenheit degree.)",
   },
 ];
+const quizOptionCounts = questions.map((question) => question.options.length);
 
 const keyIdeas = [
   {
@@ -293,38 +283,59 @@ const examples = [
     title: "Example 1: Fahrenheit to Celsius",
     problem:
       "A healthy person has an oral temperature of 98.6°F. What would this reading be on the Celsius scale?",
-    steps: ["TC = 5/9 (TF − 32)", "TC = 5/9 (98.6 − 32)"],
-    answer: "TC = 37°C",
+    given: ["TF = 98.6°F"],
+    find: "The temperature in degrees Celsius, TC.",
+    formula: "TC = 5/9 (TF − 32)",
+    substitution: "TC = 5/9 (98.6 − 32)",
+    calculation: "TC = 5/9 × 66.6 = 37.0",
+    answer: "TC = 37.0°C",
   },
   {
     title: "Example 2: Celsius to Fahrenheit",
     problem:
       "A time and temperature sign on a bank indicates that the outdoor temperature is −20.0°C. Find the corresponding temperature on the Fahrenheit scale.",
-    steps: ["TF = 9/5 TC + 32", "TF = 9/5 (−20.0) + 32"],
-    answer: "TF = −4°F",
+    given: ["TC = −20.0°C"],
+    find: "The temperature in degrees Fahrenheit, TF.",
+    formula: "TF = 9/5 TC + 32",
+    substitution: "TF = 9/5 (−20.0) + 32",
+    calculation: "TF = −36.0 + 32 = −4.0",
+    answer: "TF = −4.0°F",
   },
   {
     title: "Example 3: Gold engagement ring",
     problem:
       "A gold engagement ring has an inner diameter of 1.5 × 10⁻² m and a temperature of 27°C. The ring falls into a sink of hot water whose temperature is 49°C. What is the change in the diameter of the hole in the ring?",
-    steps: [
-      "Given: D₀ = 1.5 × 10⁻² m, T₀ = 27°C, Tf = 49°C, α(gold) = 14 × 10⁻⁶ (C°)⁻¹",
-      "ΔD = αD₀ΔT",
-      "ΔD = (14 × 10⁻⁶)(1.5 × 10⁻²)(49 − 27)",
+    given: [
+      "D₀ = 1.5 × 10⁻² m",
+      "T₀ = 27°C",
+      "Tf = 49°C",
+      "αgold = 14 × 10⁻⁶ °C⁻¹",
     ],
+    find: "The change in the diameter of the ring's hole, ΔD.",
+    formula: "ΔD = αD₀ΔT",
+    substitution: "ΔD = (14 × 10⁻⁶ °C⁻¹)(1.5 × 10⁻² m)(49 − 27)°C",
+    calculation: "ΔD = 4.62 × 10⁻⁶ m = 4.62 μm",
     answer: "ΔD = 4.62 μm",
   },
   {
     title: "Example 4: Heating water",
     problem: "What is the energy required to raise the temperature of 0.500 kg of water by 3.00°C?",
-    steps: ["Given: m = 0.500 kg, c(water) = 4186 J/(kg·°C), ΔT = 3.00°C", "Q = mcΔT = (0.500)(4186)(3.00)"],
-    answer: "Q = 6 279 J",
+    given: ["m = 0.500 kg", "c = 4186 J/(kg·°C)", "ΔT = 3.00°C"],
+    find: "The heat energy, Q, required.",
+    formula: "Q = mcΔT",
+    substitution: "Q = (0.500 kg)(4186 J/(kg·°C))(3.00°C)",
+    calculation: "Q = 6,279 J",
+    answer: "Q = 6,279 J",
   },
   {
     title: "Example 5: The jogger",
     problem:
       "In a half hour, a 65-kg jogger can generate 8.0 × 10⁵ J of heat. If the heat were not removed, how much would the jogger's body temperature increase? (c = 3500 J/(kg·C°))",
-    steps: ["Given: m = 65 kg, Q = 8.0 × 10⁵ J, c = 3500 J/(kg·C°)", "Q = mcΔT, so ΔT = Q / (mc)", "ΔT = 8.0 × 10⁵ / (65 × 3500)"],
+    given: ["m = 65 kg", "Q = 8.0 × 10⁵ J", "c = 3500 J/(kg·°C)"],
+    find: "The jogger's body-temperature increase, ΔT.",
+    formula: "Q = mcΔT, so ΔT = Q/(mc)",
+    substitution: "ΔT = (8.0 × 10⁵ J)/((65 kg)(3500 J/(kg·°C)))",
+    calculation: "ΔT = 3.516…°C ≈ 3.52°C",
     answer: "ΔT = 3.52°C",
   },
 ];
@@ -352,7 +363,35 @@ export default function TemperatureHeatPage() {
   const [finalTemp, setFinalTemp] = useState(50);
 
   // Worked examples
-  const [openExample, setOpenExample] = useState<number | null>(null);
+  const [openExamples, setOpenExamples] = useState<Set<number>>(() => new Set());
+
+  function toggleExample(index: number) {
+    setOpenExamples((current) => {
+      const next = new Set(current);
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
+      return next;
+    });
+  }
+
+  function resetTemperatureConverter() {
+    setCelsius(25);
+    setFahrenheitInput(98.6);
+  }
+
+  function resetExpansionCalculator() {
+    setExpMaterial(6);
+    setLength0(0.015);
+    setExpT0(27);
+    setExpTf(49);
+  }
+
+  function resetSpecificHeatCalculator() {
+    setMass(1);
+    setSpecificHeat(4186);
+    setInitialTemp(20);
+    setFinalTemp(50);
+  }
 
   // Quiz
   const [answers, setAnswers] = useState<Record<number, number>>({});
@@ -364,10 +403,28 @@ export default function TemperatureHeatPage() {
     saveResult,
     resetResult,
   } = useLessonQuizResult();
+  const [quizOrder, reshuffleQuiz] =
+    useShuffledQuestionOrder(quizOptionCounts);
+  const quizAttempt = quizOrder.map(({ questionIndex, optionOrder }) => {
+    const question = questions[questionIndex];
+
+    return {
+      ...question,
+      options: optionOrder.map((optionIndex) => question.options[optionIndex]),
+      answer: optionOrder.indexOf(question.answer),
+      questionIndex,
+      originalOptions: question.options,
+      optionOrder,
+    };
+  });
 
   const kelvin = celsius + 273.15;
   const fahrenheit = (celsius * 9) / 5 + 32;
-  const celsiusFromF = (5 / 9) * (fahrenheitInput - 32);
+  const fahrenheitValid =
+    Number.isFinite(fahrenheitInput) && fahrenheitInput >= -459.67;
+  const celsiusFromF = fahrenheitValid
+    ? (5 / 9) * (fahrenheitInput - 32)
+    : Number.NaN;
   const thermoFraction = Math.max(0, Math.min(1, (celsius + 273.15) / 473.15));
 
   const alpha = expansionMaterials[expMaterial].alpha * 1e-6;
@@ -382,7 +439,7 @@ export default function TemperatureHeatPage() {
   const heat = mass * specificHeat * (finalTemp - initialTemp);
 
   const answeredCount = Object.keys(answers).length;
-  const score = questions.reduce(
+  const score = quizAttempt.reduce(
     (total, question, index) =>
       total + (answers[index] === question.answer ? 1 : 0),
     0
@@ -392,28 +449,29 @@ export default function TemperatureHeatPage() {
     setAnswers({});
     setSubmitted(false);
     resetResult();
+    reshuffleQuiz();
   }
 
   function submitQuiz() {
     setSubmitted(true);
     void saveResult(
       "temperature-heat",
-      questions.map((_, index) => answers[index] ?? -1),
-      questions.map((question) => ({
+      quizAttempt.map((_, index) => answers[index] ?? -1),
+      quizAttempt.map((question) => ({
         question: question.question,
-        choices: question.options,
+        choices: question.originalOptions,
         explanation: question.explanation,
+        questionIndex: question.questionIndex,
+        optionOrder: question.optionOrder,
       }))
     );
   }
 
   return (
-    <main className="flex h-dvh flex-col overflow-hidden bg-[#080D1B] text-[#F8FAFC]">
-      <LessonNavigation />
+    <main className="flex h-full min-h-0 flex-col overflow-hidden bg-[#080D1B] text-[#F8FAFC]">
 
-      <div className="grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] md:grid-rows-1 md:grid-cols-[250px_minmax(0,1fr)]">
-        <LessonSidebar sections={lessonSections} accentClass="text-orange-300" />
-        <div id="lesson-main-scroll" className="min-w-0 overflow-y-auto overscroll-contain px-4 py-6 sm:px-6 lg:px-10">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <div id="lesson-main-scroll" className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain px-4 py-6 sm:px-6 lg:px-10">
         <div className="mx-auto w-full max-w-[1600px]">
         <LessonProgressTracker lessonSlug="temperature-heat" />
         <LessonHeader
@@ -626,6 +684,14 @@ export default function TemperatureHeatPage() {
               </button>
             ))}
           </div>
+          <button
+            type="button"
+            onClick={() => setHeatTransferMode("conduction")}
+            className="mt-4 inline-flex items-center gap-2 rounded-lg border border-white/15 px-4 py-2 text-sm font-semibold text-slate-300 transition hover:bg-white/5"
+          >
+            <RotateCcw size={15} aria-hidden="true" />
+            Reset demonstration
+          </button>
           <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] lg:items-center">
             <div className="rounded-2xl border border-white/10 bg-[#080D1B] p-4">
               {heatTransferMode === "conduction" ? (
@@ -729,9 +795,9 @@ export default function TemperatureHeatPage() {
                 <input
                   id="celsius"
                   type="range"
-                  min="-273"
+                  min="-273.15"
                   max="200"
-                  step="1"
+                  step="0.01"
                   value={celsius}
                   onChange={(event) => setCelsius(Number(event.target.value))}
                   className="w-full accent-orange-400"
@@ -783,15 +849,28 @@ export default function TemperatureHeatPage() {
                   <input
                     id="fahrenheit"
                     type="number"
-                    value={fahrenheitInput}
-                    onChange={(event) => setFahrenheitInput(Number(event.target.value))}
+                    min="-459.67"
+                    step="any"
+                    value={Number.isFinite(fahrenheitInput) ? fahrenheitInput : ""}
+                    onChange={(event) =>
+                      setFahrenheitInput(
+                        event.target.value === ""
+                          ? Number.NaN
+                          : Number(event.target.value)
+                      )
+                    }
                     className="w-32 rounded-xl border border-white/10 bg-[#111A2E] px-4 py-2 text-white outline-none focus:border-orange-300"
                   />
                   <span className="text-sm text-slate-400">°F =</span>
                   <span className="text-xl font-bold text-orange-300">
-                    {celsiusFromF.toFixed(2)}°C
+                    {fahrenheitValid ? `${celsiusFromF.toFixed(2)}°C` : "—"}
                   </span>
                 </div>
+                {!fahrenheitValid && (
+                  <p role="alert" className="mt-2 text-xs text-amber-300">
+                    Enter a temperature at or above absolute zero (−459.67°F).
+                  </p>
+                )}
                 <p className="mt-3 text-xs text-slate-500">
                   Try 98.6°F, the oral temperature of a healthy person.
                 </p>
@@ -819,6 +898,14 @@ export default function TemperatureHeatPage() {
               </p>
             </div>
           </div>
+          <button
+            type="button"
+            onClick={resetTemperatureConverter}
+            className="mt-5 inline-flex items-center gap-2 rounded-lg border border-white/15 px-4 py-2 text-sm font-semibold text-slate-300 transition hover:bg-white/5"
+          >
+            <RotateCcw size={15} aria-hidden="true" />
+            Reset converter
+          </button>
         </section>
 
         <section id="thermal-expansion" className="mb-12 scroll-mt-28 rounded-3xl border border-sky-400/20 bg-[#111A2E] p-6 md:p-8">
@@ -925,6 +1012,14 @@ export default function TemperatureHeatPage() {
               </div>
             </div>
           </div>
+          <button
+            type="button"
+            onClick={resetExpansionCalculator}
+            className="mt-5 inline-flex items-center gap-2 rounded-lg border border-white/15 px-4 py-2 text-sm font-semibold text-slate-300 transition hover:bg-white/5"
+          >
+            <RotateCcw size={15} aria-hidden="true" />
+            Reset calculator
+          </button>
         </section>
 
         <section id="specific-heat" className="mb-12 scroll-mt-28 rounded-3xl border border-violet-400/20 bg-[#111A2E] p-6 md:p-8">
@@ -1036,6 +1131,14 @@ export default function TemperatureHeatPage() {
               </div>
             </div>
           </div>
+          <button
+            type="button"
+            onClick={resetSpecificHeatCalculator}
+            className="mt-5 inline-flex items-center gap-2 rounded-lg border border-white/15 px-4 py-2 text-sm font-semibold text-slate-300 transition hover:bg-white/5"
+          >
+            <RotateCcw size={15} aria-hidden="true" />
+            Reset calculator
+          </button>
         </section>
 
         <section id="worked-examples" className="mb-12 scroll-mt-28 rounded-3xl border border-white/10 bg-[#111A2E] p-6 md:p-8">
@@ -1051,32 +1154,59 @@ export default function TemperatureHeatPage() {
 
           <div className="space-y-4">
             {examples.map((example, index) => {
-              const open = openExample === index;
+              const open = openExamples.has(index);
               return (
                 <div key={example.title} className="rounded-2xl border border-white/10 bg-[#080D1B] p-5">
                   <p className="font-semibold text-orange-300">{example.title}</p>
                   <p className="mt-2 text-sm leading-6 text-slate-300">{example.problem}</p>
                   <button
                     type="button"
-                    onClick={() => setOpenExample(open ? null : index)}
-                    className="mt-4 inline-flex items-center gap-2 rounded-lg border border-white/15 px-4 py-2 text-sm font-semibold transition hover:bg-white/5"
+                    aria-expanded={open}
+                    aria-controls={`temperature-example-solution-${index}`}
+                    onClick={() => toggleExample(index)}
+                    className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-lg border border-white/15 px-4 py-2 text-sm font-semibold transition hover:bg-white/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-300"
                   >
-                    {open ? "Hide solution" : "Show solution"}
+                    {open ? "Hide Solution" : "Show Solution"}
                   </button>
-                  {open && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 6 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="mt-4 rounded-xl bg-white/[0.03] p-4"
-                    >
-                      <div className="space-y-1 text-sm leading-6 text-slate-400">
-                        {example.steps.map((step) => (
-                          <p key={step}>{step}</p>
-                        ))}
-                      </div>
-                      <p className="mt-3 text-lg font-bold text-emerald-300">{example.answer}</p>
-                    </motion.div>
-                  )}
+                  <AnimatePresence initial={false}>
+                    {open && (
+                      <motion.div
+                        id={`temperature-example-solution-${index}`}
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="overflow-hidden"
+                      >
+                        <div className="mt-4 space-y-3 rounded-xl bg-white/[0.03] p-4 text-sm leading-6 text-slate-400">
+                          <div>
+                            <p className="font-semibold text-orange-300">Given</p>
+                            {example.given.map((value) => <p key={value}>{value}</p>)}
+                          </div>
+                          <div>
+                            <p className="font-semibold text-orange-300">Find</p>
+                            <p>{example.find}</p>
+                          </div>
+                          <div>
+                            <p className="font-semibold text-orange-300">Formula</p>
+                            <p>{example.formula}</p>
+                          </div>
+                          <div>
+                            <p className="font-semibold text-orange-300">Substitution</p>
+                            <p>{example.substitution}</p>
+                          </div>
+                          <div>
+                            <p className="font-semibold text-orange-300">Calculation</p>
+                            <p>{example.calculation}</p>
+                          </div>
+                          <div>
+                            <p className="font-semibold text-orange-300">Final Answer</p>
+                            <p className="text-lg font-bold text-emerald-300">{example.answer}</p>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               );
             })}
@@ -1088,7 +1218,7 @@ export default function TemperatureHeatPage() {
             <div>
               <p className="text-sm font-semibold text-emerald-300">CHECK YOUR KNOWLEDGE</p>
               <h2 className="mt-2 text-2xl font-bold md:text-3xl">
-                Temperature &amp; Heat · {questions.length} questions
+                Temperature &amp; Heat · {quizAttempt.length} questions
               </h2>
               <p className="mt-2 text-sm leading-6 text-slate-400">
                 Answer every question. Your score and explanations appear after submission.
@@ -1097,17 +1227,17 @@ export default function TemperatureHeatPage() {
             <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-5 py-3">
                 <p className="text-sm text-slate-300">Your score</p>
                 <p className="text-2xl font-black text-emerald-300">
-                  {submitted ? `${score} / ${questions.length}` : `${answeredCount} / ${questions.length}`}
+                  {submitted ? `${score} / ${quizAttempt.length}` : `${answeredCount} / ${quizAttempt.length}`}
                 </p>
             </div>
           </div>
 
-          <div className="mb-6 h-2 overflow-hidden rounded-full bg-white/10" role="progressbar" aria-label="Quiz questions answered" aria-valuemin={0} aria-valuemax={questions.length} aria-valuenow={answeredCount}>
-            <div className="h-full rounded-full bg-sky-400 transition-all" style={{ width: `${(answeredCount / questions.length) * 100}%` }} />
+          <div className="mb-6 h-2 overflow-hidden rounded-full bg-white/10" role="progressbar" aria-label="Quiz questions answered" aria-valuemin={0} aria-valuemax={quizAttempt.length} aria-valuenow={answeredCount}>
+            <div className="h-full rounded-full bg-sky-400 transition-all" style={{ width: `${(answeredCount / quizAttempt.length) * 100}%` }} />
           </div>
 
           <div className="space-y-6">
-            {questions.map((question, index) => (
+            {quizAttempt.map((question, index) => (
               <LessonQuizQuestion key={question.question} number={index + 1}>
                 <p className="font-semibold leading-6">
                   {question.question}
@@ -1168,14 +1298,14 @@ export default function TemperatureHeatPage() {
               <>
                 <button
                   type="button"
-                  disabled={answeredCount !== questions.length}
+                  disabled={answeredCount !== quizAttempt.length}
                   onClick={submitQuiz}
                   className={QUIZ_SUBMIT_BUTTON_CLASS}
                 >
                   Submit quiz <ArrowRight size={18} />
                 </button>
                 <span className="text-sm text-slate-400">
-                  {answeredCount} / {questions.length} answered
+                  {answeredCount} / {quizAttempt.length} answered
                 </span>
               </>
             ) : (
@@ -1195,11 +1325,13 @@ export default function TemperatureHeatPage() {
             onRetry={() =>
               void saveResult(
                 "temperature-heat",
-                questions.map((_, index) => answers[index] ?? -1),
-                questions.map((question) => ({
+                quizAttempt.map((_, index) => answers[index] ?? -1),
+                quizAttempt.map((question) => ({
                   question: question.question,
-                  choices: question.options,
+                  choices: question.originalOptions,
                   explanation: question.explanation,
+                  questionIndex: question.questionIndex,
+                  optionOrder: question.optionOrder,
                 }))
               )
             }
@@ -1207,19 +1339,12 @@ export default function TemperatureHeatPage() {
         </section>
 
         <footer className="flex flex-wrap items-center justify-between gap-4 border-t border-white/10 pt-6 text-sm text-slate-500">
-          <p>Calph++ · Learn physics by exploring.</p>
           <div className="flex flex-wrap gap-4">
             <Link
               href="/lessons/fluids"
               className="inline-flex items-center gap-2 text-sky-300 hover:text-sky-200"
             >
               <ArrowLeft size={16} /> Previous: Fluids
-            </Link>
-            <Link
-              href="/dashboard"
-              className="inline-flex items-center gap-2 text-sky-300 hover:text-sky-200"
-            >
-              All topics <ArrowRight size={16} />
             </Link>
           </div>
         </footer>

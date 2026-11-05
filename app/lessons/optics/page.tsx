@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -16,8 +16,6 @@ import {
 } from "lucide-react";
 import LessonQuizFeedback from "../LessonQuizFeedback";
 import LessonHeader from "../LessonHeader";
-import LessonNavigation from "../LessonNavigation";
-import LessonSidebar from "../LessonSidebar";
 import LessonProgressTracker from "../LessonProgressTracker";
 import LessonQuizQuestion, {
   getQuizOptionClass,
@@ -26,18 +24,7 @@ import LessonQuizQuestion, {
   QUIZ_SUBMIT_BUTTON_CLASS,
 } from "../LessonQuizQuestion";
 import { useLessonQuizResult } from "../useLessonQuizResult";
-
-const lessonSections = [
-  { id: "light-and-reflection", label: "Light & reflection" },
-  { id: "mirror-vocabulary", label: "Mirror vocabulary" },
-  { id: "sign-convention", label: "Sign convention" },
-  { id: "simulator", label: "Mirror simulator" },
-  { id: "mirror-types", label: "Mirror types" },
-  { id: "image-formation", label: "Image formation" },
-  { id: "mirror-equations", label: "Equations & examples" },
-  { id: "ray-tracing", label: "Refraction & lenses" },
-  { id: "quiz", label: "Quiz" },
-];
+import { useShuffledQuestionOrder } from "../quizRandomization";
 
 /* ------------------------------------------------------------------ */
 /* Shared style helpers                                                */
@@ -244,37 +231,7 @@ const questions = [
   },
 ];
 
-type Question = (typeof questions)[number];
-
-/**
- * Deterministic PRNG so the server and client render the same option order
- * (no hydration mismatch), while each retake gets a different order.
- */
-function mulberry32(seed: number) {
-  let s = seed | 0;
-  return () => {
-    s = (s + 0x6d2b79f5) | 0;
-    let t = Math.imul(s ^ (s >>> 15), 1 | s);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-function shuffleQuestionOptions(attempt: number): Question[] {
-  return questions.map((question, questionIndex) => {
-    const rand = mulberry32((attempt + 1) * 1009 + questionIndex * 17 + 3);
-    const order = question.options.map((_, i) => i);
-    for (let i = order.length - 1; i > 0; i--) {
-      const j = Math.floor(rand() * (i + 1));
-      [order[i], order[j]] = [order[j], order[i]];
-    }
-    return {
-      ...question,
-      options: order.map((i) => question.options[i]),
-      a: order.indexOf(question.a),
-    };
-  });
-}
+const quizOptionCounts = questions.map((question) => question.options.length);
 
 /* ------------------------------------------------------------------ */
 /* Worked examples                                                     */
@@ -284,7 +241,10 @@ interface WorkedExampleData {
   title: string;
   problem: string;
   given: string[];
-  steps: { label: string; lines: string[] }[];
+  find: string;
+  formula: string[];
+  substitution: string[];
+  calculation: string[];
   answer: string;
   meaning: string;
 }
@@ -295,29 +255,19 @@ const workedExamples: WorkedExampleData[] = [
     problem:
       "A 4 cm tall object is 30 cm in front of a concave mirror with focal length +10 cm. Find the image distance, magnification, and image height.",
     given: ["do = 30 cm", "f = +10 cm", "ho = 4 cm"],
-    steps: [
-      {
-        label: "Step 1: Write the mirror equation and solve for di",
-        lines: ["1/f = 1/do + 1/di", "1/di = 1/f − 1/do"],
-      },
-      {
-        label: "Step 2: Substitute with units",
-        lines: [
-          "1/di = 1/(10 cm) − 1/(30 cm)",
-          "1/di = 3/(30 cm) − 1/(30 cm) = 2/(30 cm) = 1/(15 cm)",
-        ],
-      },
-      {
-        label: "Step 3: Solve for the image distance",
-        lines: ["di = +15 cm"],
-      },
-      {
-        label: "Step 4: Magnification and image height",
-        lines: [
-          "M = −di/do = −(15 cm)/(30 cm) = −0.5",
-          "hi = M × ho = (−0.5)(4 cm) = −2 cm",
-        ],
-      },
+    find: "Image distance di, magnification M, and image height hi.",
+    formula: [
+      "Mirror equation: 1/f = 1/do + 1/di, so di = 1 / (1/f − 1/do)",
+      "Magnification: M = −di/do; image height: hi = M × ho",
+    ],
+    substitution: [
+      "1/di = 1/(10 cm) − 1/(30 cm)",
+      "1/di = 3/(30 cm) − 1/(30 cm) = 2/(30 cm) = 1/(15 cm)",
+    ],
+    calculation: [
+      "di = 1 / (1/(15 cm)) = +15 cm",
+      "M = −(+15 cm)/(30 cm) = −0.5",
+      "hi = (−0.5)(4 cm) = −2 cm",
     ],
     answer: "di = +15 cm, M = −0.5, hi = −2 cm",
     meaning:
@@ -328,29 +278,19 @@ const workedExamples: WorkedExampleData[] = [
     problem:
       "A 5 cm tall object is 30 cm in front of a convex mirror with focal length −20 cm. Find the image distance, magnification, and image height.",
     given: ["do = 30 cm", "f = −20 cm (convex, so negative)", "ho = 5 cm"],
-    steps: [
-      {
-        label: "Step 1: Solve the mirror equation for di",
-        lines: ["1/di = 1/f − 1/do"],
-      },
-      {
-        label: "Step 2: Substitute with units",
-        lines: [
-          "1/di = 1/(−20 cm) − 1/(30 cm)",
-          "1/di = −3/(60 cm) − 2/(60 cm) = −5/(60 cm) = −1/(12 cm)",
-        ],
-      },
-      {
-        label: "Step 3: Solve for the image distance",
-        lines: ["di = −12 cm"],
-      },
-      {
-        label: "Step 4: Magnification and image height",
-        lines: [
-          "M = −di/do = −(−12 cm)/(30 cm) = +0.4",
-          "hi = M × ho = (+0.4)(5 cm) = +2 cm",
-        ],
-      },
+    find: "Image distance di, magnification M, and image height hi.",
+    formula: [
+      "Mirror equation: 1/f = 1/do + 1/di, so di = 1 / (1/f − 1/do)",
+      "Magnification: M = −di/do; image height: hi = M × ho",
+    ],
+    substitution: [
+      "1/di = 1/(−20 cm) − 1/(30 cm)",
+      "1/di = −3/(60 cm) − 2/(60 cm) = −5/(60 cm) = −1/(12 cm)",
+    ],
+    calculation: [
+      "di = 1 / (−1/(12 cm)) = −12 cm",
+      "M = −(−12 cm)/(30 cm) = +0.4",
+      "hi = (+0.4)(5 cm) = +2 cm",
     ],
     answer: "di = −12 cm, M = +0.4, hi = +2 cm",
     meaning:
@@ -361,29 +301,19 @@ const workedExamples: WorkedExampleData[] = [
     problem:
       "A 2 cm tall object is 10 cm in front of a concave mirror with focal length +15 cm. Find the image distance, magnification, and image height.",
     given: ["do = 10 cm", "f = +15 cm", "ho = 2 cm"],
-    steps: [
-      {
-        label: "Step 1: Solve the mirror equation for di",
-        lines: ["1/di = 1/f − 1/do"],
-      },
-      {
-        label: "Step 2: Substitute with units",
-        lines: [
-          "1/di = 1/(15 cm) − 1/(10 cm)",
-          "1/di = 2/(30 cm) − 3/(30 cm) = −1/(30 cm)",
-        ],
-      },
-      {
-        label: "Step 3: Solve for the image distance",
-        lines: ["di = −30 cm"],
-      },
-      {
-        label: "Step 4: Magnification and image height",
-        lines: [
-          "M = −di/do = −(−30 cm)/(10 cm) = +3",
-          "hi = M × ho = (+3)(2 cm) = +6 cm",
-        ],
-      },
+    find: "Image distance di, magnification M, and image height hi.",
+    formula: [
+      "Mirror equation: 1/f = 1/do + 1/di, so di = 1 / (1/f − 1/do)",
+      "Magnification: M = −di/do; image height: hi = M × ho",
+    ],
+    substitution: [
+      "1/di = 1/(15 cm) − 1/(10 cm)",
+      "1/di = 2/(30 cm) − 3/(30 cm) = −1/(30 cm)",
+    ],
+    calculation: [
+      "di = 1 / (−1/(30 cm)) = −30 cm",
+      "M = −(−30 cm)/(10 cm) = +3",
+      "hi = (+3)(2 cm) = +6 cm",
     ],
     answer: "di = −30 cm, M = +3, hi = +6 cm",
     meaning:
@@ -1723,263 +1653,75 @@ function MirrorImageSimulator() {
 /* ------------------------------------------------------------------ */
 
 function WorkedExample({ example }: { example: WorkedExampleData }) {
+  const [open, setOpen] = useState(false);
+  const solutionId = `solution-${example.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+
   return (
     <div className="mt-6 rounded-2xl border border-amber-400/20 bg-[#080D1B] p-5 md:p-6">
       <h3 className="text-xl font-bold">{example.title}</h3>
       <p className="mt-3 leading-7 text-slate-300">{example.problem}</p>
 
-      <div className="mt-5 space-y-4 text-sm leading-7 text-slate-300">
-        <div>
-          <p className="font-semibold text-amber-300">Given</p>
-          <p>{example.given.join(", ")}</p>
-        </div>
-        {example.steps.map((step) => (
-          <div key={step.label}>
-            <p className="font-semibold text-amber-300">{step.label}</p>
-            {step.lines.map((line) => (
-              <p key={line}>{line}</p>
-            ))}
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-controls={solutionId}
+        onClick={() => setOpen((currentlyOpen) => !currentlyOpen)}
+        className={`mt-4 inline-flex items-center gap-2 rounded-lg border border-white/15 px-4 py-2 text-sm font-semibold transition hover:bg-white/5 ${FOCUS}`}
+      >
+        {open ? "Hide Solution" : "Show Solution"}
+      </button>
+      {open && (
+        <div
+          id={solutionId}
+          className="mt-4 rounded-xl bg-white/[0.03] p-4 text-sm leading-7 text-slate-300"
+        >
+          <div className="space-y-4">
+            <div>
+              <p className="font-semibold text-amber-300">Given</p>
+              <p>{example.given.join(", ")}</p>
+            </div>
+            <div>
+              <p className="font-semibold text-amber-300">Find</p>
+              <p>{example.find}</p>
+            </div>
+            <div>
+              <p className="font-semibold text-amber-300">Formula</p>
+              {example.formula.map((line) => (
+                <p key={line}>{line}</p>
+              ))}
+            </div>
+            <div>
+              <p className="font-semibold text-amber-300">Substitution</p>
+              {example.substitution.map((line) => (
+                <p key={line}>{line}</p>
+              ))}
+            </div>
+            <div>
+              <p className="font-semibold text-amber-300">Calculation</p>
+              {example.calculation.map((line) => (
+                <p key={line}>{line}</p>
+              ))}
+            </div>
+            <div>
+              <p className="font-semibold text-amber-300">Final Answer</p>
+              <p className="text-lg font-bold text-emerald-300">{example.answer}</p>
+              <p>{example.meaning}</p>
+            </div>
           </div>
-        ))}
-        <div>
-          <p className="font-semibold text-amber-300">Final answer</p>
-          <p className="text-lg font-bold">{example.answer}</p>
-          <p>{example.meaning}</p>
         </div>
-      </div>
+      )}
     </div>
   );
 }
 
-function RefractionAndLensSimulator() {
-  const [incidentMedium, setIncidentMedium] = useState("air");
-  const [transmittedMedium, setTransmittedMedium] = useState("water");
-  const [incidentAngle, setIncidentAngle] = useState(35);
-  const [lensType, setLensType] = useState<"converging" | "diverging">("converging");
-  const [objectDistance, setObjectDistance] = useState(40);
-  const [focalMagnitude, setFocalMagnitude] = useState(15);
-  const refractiveIndices: Record<string, number> = {
-    air: 1,
-    water: 1.33,
-    glass: 1.5,
-  };
-  const n1 = refractiveIndices[incidentMedium];
-  const n2 = refractiveIndices[transmittedMedium];
-  const transmittedSine = (n1 / n2) * Math.sin((incidentAngle * Math.PI) / 180);
-  const totalInternalReflection = transmittedSine > 1;
-  const transmittedAngle = totalInternalReflection
-    ? null
-    : (Math.asin(transmittedSine) * 180) / Math.PI;
-  const incidentRadians = (incidentAngle * Math.PI) / 180;
-  const incidentPoint = {
-    x: 180 - 90 * Math.sin(incidentRadians),
-    y: 120 - 90 * Math.cos(incidentRadians),
-  };
-  const refractedPoint =
-    transmittedAngle === null
-      ? null
-      : {
-          x: 180 + 90 * Math.sin((transmittedAngle * Math.PI) / 180),
-          y: 120 + 90 * Math.cos((transmittedAngle * Math.PI) / 180),
-        };
-  const reflectedPoint = {
-    x: 180 + 90 * Math.sin(incidentRadians),
-    y: 120 - 90 * Math.cos(incidentRadians),
-  };
-
-  const focalLength =
-    lensType === "converging" ? focalMagnitude : -focalMagnitude;
-  const imageDistance =
-    Math.abs(objectDistance - focalLength) < 0.001
-      ? null
-      : (focalLength * objectDistance) / (objectDistance - focalLength);
-  const magnification =
-    imageDistance === null ? null : -imageDistance / objectDistance;
-  const lensScale =
-    100 / Math.max(objectDistance, Math.abs(imageDistance ?? 0), focalMagnitude);
-  const objectX = 180 - objectDistance * lensScale;
-  const imageX = 180 + (imageDistance ?? 0) * lensScale;
-  const imageHeight = Math.max(
-    -55,
-    Math.min(55, (magnification ?? 0) * 38)
-  );
-
-  return (
-    <section
-      id="ray-tracing"
-      className="mb-10 scroll-mt-28 rounded-3xl border border-cyan-400/20 bg-[#111A2E] p-6 md:p-8"
-    >
-      <p className="text-sm font-semibold text-cyan-300">INTERACTIVE OPTICS LAB</p>
-      <h2 className="mt-2 text-2xl font-bold md:text-3xl">
-        Refraction, Snell&apos;s Law, and Lenses
-      </h2>
-      <p className="mt-3 max-w-4xl leading-7 text-slate-400">
-        Angles are measured from the normal. Snell&apos;s law applies at a
-        stationary boundary between transparent media; the thin-lens model
-        below assumes paraxial rays and a thin lens. Use the existing mirror
-        simulator to trace reflection and compare it with refraction here.
-      </p>
-
-      <div className="mt-6 grid gap-5 xl:grid-cols-2">
-        <article className="rounded-2xl border border-white/10 bg-[#080D1B] p-5">
-          <h3 className="text-lg font-bold text-sky-300">Light ray tracing</h3>
-          <p className="mt-2 text-sm leading-6 text-slate-400">
-            Select the two media and vary the incident angle. The ray bends
-            toward the normal when entering a higher-index medium and away
-            from it when entering a lower-index medium.
-          </p>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            <label className="text-sm text-slate-300">
-              Incident medium
-              <select
-                value={incidentMedium}
-                onChange={(event) => setIncidentMedium(event.target.value)}
-                className="mt-2 w-full rounded-xl border border-white/10 bg-[#111A2E] px-3 py-2"
-              >
-                <option value="air">Air (n = 1.00)</option>
-                <option value="water">Water (n = 1.33)</option>
-                <option value="glass">Glass (n = 1.50)</option>
-              </select>
-            </label>
-            <label className="text-sm text-slate-300">
-              Transmitted medium
-              <select
-                value={transmittedMedium}
-                onChange={(event) => setTransmittedMedium(event.target.value)}
-                className="mt-2 w-full rounded-xl border border-white/10 bg-[#111A2E] px-3 py-2"
-              >
-                <option value="air">Air (n = 1.00)</option>
-                <option value="water">Water (n = 1.33)</option>
-                <option value="glass">Glass (n = 1.50)</option>
-              </select>
-            </label>
-          </div>
-          <label htmlFor="incident-angle" className="mt-4 flex justify-between text-sm text-slate-300">
-            Incident angle θ₁ <span>{incidentAngle}°</span>
-          </label>
-          <input
-            id="incident-angle"
-            type="range"
-            min="0"
-            max="89"
-            value={incidentAngle}
-            onChange={(event) => setIncidentAngle(Number(event.target.value))}
-            className="mt-2 w-full accent-cyan-400"
-          />
-          <svg
-            viewBox="0 0 360 230"
-            role="img"
-            aria-label={`Ray diagram for light going from ${incidentMedium} to ${transmittedMedium}`}
-            className="mt-4 w-full rounded-xl bg-slate-950"
-          >
-            <rect x="0" y="0" width="360" height="120" fill="#17243A" />
-            <rect x="0" y="120" width="360" height="110" fill="#0F172A" />
-            <line x1="20" y1="120" x2="340" y2="120" stroke="#CBD5E1" strokeWidth="2" />
-            <line x1="180" y1="22" x2="180" y2="215" stroke="#64748B" strokeDasharray="5 5" />
-            <line x1={incidentPoint.x} y1={incidentPoint.y} x2="180" y2="120" stroke="#38BDF8" strokeWidth="4" />
-            {totalInternalReflection ? (
-              <line x1="180" y1="120" x2={reflectedPoint.x} y2={reflectedPoint.y} stroke="#FBBF24" strokeWidth="4" />
-            ) : (
-              refractedPoint && <line x1="180" y1="120" x2={refractedPoint.x} y2={refractedPoint.y} stroke="#34D399" strokeWidth="4" />
-            )}
-            <circle cx="180" cy="120" r="5" fill="#F8FAFC" />
-            <text x="12" y="20" fill="#CBD5E1" fontSize="12">{incidentMedium} · n₁ = {n1.toFixed(2)}</text>
-            <text x="12" y="145" fill="#CBD5E1" fontSize="12">{transmittedMedium} · n₂ = {n2.toFixed(2)}</text>
-            <text x="188" y="38" fill="#94A3B8" fontSize="11">normal</text>
-          </svg>
-          <p aria-live="polite" className="mt-3 rounded-xl bg-white/5 p-3 text-sm leading-6 text-slate-300">
-            {totalInternalReflection
-              ? `Total internal reflection: sin θ₂ = ${transmittedSine.toFixed(3)} exceeds 1, so no transmitted ray exists in this ideal model.`
-              : `Snell's law: n₁ sin θ₁ = n₂ sin θ₂. Refracted angle θ₂ ≈ ${transmittedAngle?.toFixed(1)}°.`}
-          </p>
-        </article>
-
-        <article className="rounded-2xl border border-white/10 bg-[#080D1B] p-5">
-          <h3 className="text-lg font-bold text-violet-300">Converging and diverging lens simulator</h3>
-          <p className="mt-2 text-sm leading-6 text-slate-400">
-            Use 1/f = 1/do + 1/di with a real object (do &gt; 0). A converging
-            (usually convex) lens has positive f; a diverging (usually concave)
-            lens has negative f.
-          </p>
-          <div className="mt-4 flex flex-wrap gap-2" role="group" aria-label="Lens type">
-            {(["converging", "diverging"] as const).map((type) => (
-              <button
-                key={type}
-                type="button"
-                aria-pressed={lensType === type}
-                onClick={() => setLensType(type)}
-                className={`rounded-lg border px-3 py-2 text-sm capitalize transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-300 ${
-                  lensType === type
-                    ? "border-violet-300/40 bg-violet-300/10 text-violet-200"
-                    : "border-white/10 text-slate-300 hover:bg-white/5"
-                }`}
-              >
-                {type === "converging"
-                  ? "Converging · usually convex"
-                  : "Diverging · usually concave"}
-              </button>
-            ))}
-          </div>
-          <label htmlFor="lens-object-distance" className="mt-4 flex justify-between text-sm text-slate-300">
-            Object distance do <span>{objectDistance} cm</span>
-          </label>
-          <input id="lens-object-distance" type="range" min="5" max="80" value={objectDistance} onChange={(event) => setObjectDistance(Number(event.target.value))} className="mt-2 w-full accent-violet-400" />
-          <label htmlFor="lens-focal-length" className="mt-4 flex justify-between text-sm text-slate-300">
-            Focal-length magnitude |f| <span>{focalMagnitude} cm</span>
-          </label>
-          <input id="lens-focal-length" type="range" min="5" max="30" value={focalMagnitude} onChange={(event) => setFocalMagnitude(Number(event.target.value))} className="mt-2 w-full accent-violet-400" />
-          <svg viewBox="0 0 360 190" role="img" aria-label={`Image diagram for a ${lensType} lens`} className="mt-4 w-full rounded-xl bg-slate-950">
-            <line x1="18" y1="145" x2="342" y2="145" stroke="#64748B" />
-            <path
-              d={
-                lensType === "converging"
-                  ? "M180 35 Q145 95 180 155 Q215 95 180 35Z"
-                  : "M145 35 Q174 95 145 155 Q180 140 215 155 Q186 95 215 35 Q180 50 145 35Z"
-              }
-              fill="#38BDF8"
-              fillOpacity=".15"
-              stroke="#7DD3FC"
-              strokeWidth="3"
-            />
-            <line x1={objectX} y1="145" x2={objectX} y2="105" stroke="#38BDF8" strokeWidth="4" markerEnd="url(#lensObjectArrow)" />
-            {imageDistance !== null && (
-              <line x1={imageX} y1="145" x2={imageX} y2={145 - imageHeight} stroke="#FBBF24" strokeWidth="4" strokeDasharray={imageDistance < 0 ? "6 4" : undefined} markerEnd="url(#lensImageArrow)" />
-            )}
-            <defs>
-              <marker id="lensObjectArrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#38BDF8" /></marker>
-              <marker id="lensImageArrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#FBBF24" /></marker>
-            </defs>
-            <text x={objectX} y="170" fill="#7DD3FC" fontSize="11" textAnchor="middle">Object</text>
-            <text x="180" y="25" fill="#7DD3FC" fontSize="11" textAnchor="middle">Lens</text>
-            {imageDistance !== null && <text x={imageX} y="170" fill="#FCD34D" fontSize="11" textAnchor="middle">Image</text>}
-          </svg>
-          <div aria-live="polite" className="mt-3 grid gap-2 sm:grid-cols-2">
-            <p className="rounded-lg bg-white/5 p-3 text-sm text-slate-300">
-              Image distance: {imageDistance === null ? "at infinity (do = f)" : `${fmt(imageDistance)} cm (${imageDistance > 0 ? "real" : "virtual"})`}
-            </p>
-            <p className="rounded-lg bg-white/5 p-3 text-sm text-slate-300">
-              Magnification: {magnification === null ? "undefined" : `${fmt(magnification, 3)} (${magnification > 0 ? "upright" : "inverted"})`}
-            </p>
-          </div>
-          <p className="mt-3 text-sm leading-6 text-slate-400">
-            Cameras use a converging lens to form a real image on a sensor. A
-            simple magnifier uses a converging lens with the object inside f,
-            producing a virtual, upright, enlarged image.
-          </p>
-        </article>
-      </div>
-    </section>
-  );
-}
-
-/* ------------------------------------------------------------------ */
 /* Page                                                                */
 /* ------------------------------------------------------------------ */
 
 export default function OpticsPage() {
-  const [attempt, setAttempt] = useState(0);
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [submitted, setSubmitted] = useState(false);
+  const [quizOrder, reshuffleQuiz] =
+    useShuffledQuestionOrder(quizOptionCounts);
   const {
     saveState,
     saveMessage,
@@ -1989,7 +1731,18 @@ export default function OpticsPage() {
   } = useLessonQuizResult();
 
   // Option order changes on every retake so students cannot memorize positions.
-  const quizQuestions = useMemo(() => shuffleQuestionOptions(attempt), [attempt]);
+  const quizQuestions = quizOrder.map(({ questionIndex, optionOrder }) => {
+    const question = questions[questionIndex];
+
+    return {
+      ...question,
+      options: optionOrder.map((optionIndex) => question.options[optionIndex]),
+      a: optionOrder.indexOf(question.a),
+      questionIndex,
+      originalOptions: question.options,
+      optionOrder,
+    };
+  });
 
   const score = quizQuestions.filter(
     (question, index) => answers[index] === question.a
@@ -2003,7 +1756,7 @@ export default function OpticsPage() {
     setAnswers({});
     setSubmitted(false);
     resetResult();
-    setAttempt((value) => value + 1);
+    reshuffleQuiz();
     document.getElementById("quiz")?.scrollIntoView({ behavior: "smooth" });
   };
 
@@ -2012,25 +1765,24 @@ export default function OpticsPage() {
     void saveResult(
       "optics",
       quizQuestions.map((_, index) => answers[index] ?? -1),
-      quizQuestions.map((question, index) => ({
+      quizQuestions.map((question) => ({
         question: question.q,
-        choices: question.options,
+        choices: question.originalOptions,
         explanation: question.why,
-        optionOrder: question.options.map((option) =>
-          questions[index].options.indexOf(option)
-        ),
+        questionIndex: question.questionIndex,
+        optionOrder: question.optionOrder,
       }))
     );
   };
 
   return (
-    <main className="flex h-dvh flex-col overflow-hidden bg-[#080D1B] text-[#F8FAFC]">
-      <LessonNavigation />
-
-      <div className="grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] md:grid-rows-1 md:grid-cols-[250px_minmax(0,1fr)]">
-        <LessonSidebar sections={lessonSections} accentClass="text-amber-300" />
-        <div id="lesson-main-scroll" className="min-w-0 overflow-y-auto overscroll-contain px-4 py-6 sm:px-6 lg:px-10">
-        <div className="mx-auto w-full max-w-[1600px]">
+    <main className="h-screen min-h-0 overflow-hidden bg-[#080D1B] text-[#F8FAFC]">
+      <div className="flex h-full min-h-0 min-w-0 flex-col">
+        <div
+          id="lesson-main-scroll"
+          className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain px-4 py-6 sm:px-6 lg:px-10"
+        >
+          <div className="mx-auto w-full max-w-[1600px]">
         <LessonProgressTracker lessonSlug="optics" />
         <LessonHeader
           module="Physics module 05"
@@ -2333,8 +2085,6 @@ export default function OpticsPage() {
           ))}
           </section>
 
-          <RefractionAndLensSimulator />
-
           <section
           id="quiz"
           className="scroll-mt-24 rounded-3xl border border-white/10 bg-[#111A2E] p-6 md:p-8"
@@ -2531,13 +2281,12 @@ export default function OpticsPage() {
               void saveResult(
                 "optics",
                 quizQuestions.map((_, index) => answers[index] ?? -1),
-                quizQuestions.map((question, index) => ({
+                quizQuestions.map((question) => ({
                   question: question.q,
-                  choices: question.options,
+                  choices: question.originalOptions,
                   explanation: question.why,
-                  optionOrder: question.options.map((option) =>
-                    questions[index].options.indexOf(option)
-                  ),
+                  questionIndex: question.questionIndex,
+                  optionOrder: question.optionOrder,
                 }))
               )
             }
@@ -2551,12 +2300,6 @@ export default function OpticsPage() {
           >
             <ArrowLeft size={16} className="mr-2 inline" />
             Previous: Waves & Sound
-          </Link>
-          <Link
-            href="/dashboard"
-            className={`text-sky-300 hover:text-sky-200 ${FOCUS}`}
-          >
-            All topics <ArrowRight size={16} className="ml-2 inline" />
           </Link>
         </footer>
         </div>

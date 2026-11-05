@@ -53,13 +53,6 @@ export async function POST(request: Request) {
   try {
     const session = await auth();
 
-    if (!session?.user?.email) {
-      return NextResponse.json(
-        { error: "Please log in to save your quiz result." },
-        { status: 401 }
-      );
-    }
-
     const body: unknown = await request.json();
 
     if (!body || typeof body !== "object") {
@@ -118,11 +111,13 @@ export async function POST(request: Request) {
     }
 
     const questionSnapshots: {
+      questionIndex: number;
       question: string;
       choices: string[];
       explanation: string;
       optionOrder: number[];
     }[] = [];
+    const seenQuestionIndexes = new Set<number>();
 
     for (const question of questions) {
       if (!question || typeof question !== "object") {
@@ -134,8 +129,14 @@ export async function POST(request: Request) {
 
       const snapshot = question as Record<string, unknown>;
       const choices = snapshot.choices;
+      const questionIndex = snapshot.questionIndex;
 
       if (
+        typeof questionIndex !== "number" ||
+        !Number.isInteger(questionIndex) ||
+        questionIndex < 0 ||
+        questionIndex >= correctIndexes.length ||
+        seenQuestionIndexes.has(questionIndex) ||
         typeof snapshot.question !== "string" ||
         snapshot.question.trim().length === 0 ||
         snapshot.question.length > 3000 ||
@@ -150,10 +151,8 @@ export async function POST(request: Request) {
         );
       }
 
-      const normalizedOrder =
-        snapshot.optionOrder === undefined
-          ? [0, 1, 2, 3]
-          : snapshot.optionOrder;
+      seenQuestionIndexes.add(questionIndex);
+      const normalizedOrder = snapshot.optionOrder;
 
       if (!isIndexList(normalizedOrder)) {
         return NextResponse.json(
@@ -163,6 +162,7 @@ export async function POST(request: Request) {
       }
 
       questionSnapshots.push({
+        questionIndex,
         question: snapshot.question,
         choices,
         explanation: snapshot.explanation,
@@ -170,31 +170,41 @@ export async function POST(request: Request) {
       });
     }
 
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-      select: { id: true },
-    });
-
-    if (!user) {
+    if (seenQuestionIndexes.size !== correctIndexes.length) {
       return NextResponse.json(
-        { error: "User account not found." },
-        { status: 404 }
+        { error: "Question order is invalid." },
+        { status: 400 }
       );
     }
 
-    // Score on the server.
-    const answerRecords = correctIndexes.map((correctIndex, index) => {
-      const snapshot = questionSnapshots[index];
-      const displayedCorrectIndex =
-        snapshot.optionOrder.indexOf(correctIndex);
+    const user = session?.user?.id
+      ? await prisma.user.findUnique({
+          where: { id: session.user.id },
+          select: { id: true },
+        })
+      : null;
+
+    if (session?.user?.id && !user) {
+      return NextResponse.json({ error: "User account not found." }, { status: 404 });
+    }
+
+    const answerRecords = questionSnapshots.map((snapshot, index) => {
       const selectedIndex = selectedIndexes[index];
+      const questionCorrectIndex = correctIndexes[snapshot.questionIndex];
+      const displayedCorrectIndex =
+        snapshot.optionOrder.indexOf(questionCorrectIndex);
+      const displayedChoices = snapshot.optionOrder.map(
+        (optionIndex) => snapshot.choices[optionIndex]
+      );
       return {
-        questionId: `q${index + 1}`,
+        questionId: `q${snapshot.questionIndex + 1}`,
         questionText: snapshot.question,
         selectedAnswer:
-          selectedIndex < 0 ? "Not answered" : snapshot.choices[selectedIndex],
-        correctAnswer: snapshot.choices[displayedCorrectIndex],
-        choices: JSON.stringify(snapshot.choices),
+          selectedIndex < 0
+            ? "Not answered"
+            : displayedChoices[selectedIndex],
+        correctAnswer: displayedChoices[displayedCorrectIndex],
+        choices: JSON.stringify(displayedChoices),
         explanation: snapshot.explanation,
         isCorrect: selectedIndex === displayedCorrectIndex,
       };
@@ -203,6 +213,17 @@ export async function POST(request: Request) {
     const score = answerRecords.filter((answer) => answer.isCorrect).length;
     const percentage = Math.round((score / correctIndexes.length) * 100);
     const passed = percentage >= PASS_PERCENT;
+
+    if (!user) {
+      return NextResponse.json({
+        saved: false,
+        score,
+        totalQuestions: correctIndexes.length,
+        passed,
+        moduleCompleted: false,
+        passPercent: PASS_PERCENT,
+      });
+    }
 
     const attempt = await prisma.quizAttempt.create({
       data: {
@@ -252,6 +273,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         message: "Quiz result saved successfully.",
+        saved: true,
         attempt: {
           id: attempt.id,
           quizId: attempt.quizId,

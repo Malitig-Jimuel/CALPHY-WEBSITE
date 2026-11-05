@@ -2,7 +2,7 @@ import { revalidatePath } from "next/cache";
 
 export function revalidateQuizPages() {
   for (const path of [
-    "/dashboard",
+    "/home",
     "/dashboard/progress",
     "/dashboard/performance",
     "/dashboard/quiz-attempts",

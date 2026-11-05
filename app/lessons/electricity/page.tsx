@@ -6,8 +6,6 @@ import Link from "next/link";
 import { ArrowRight, CheckCircle2, RotateCcw, XCircle, Zap } from "lucide-react";
 import LessonQuizFeedback from "../LessonQuizFeedback";
 import LessonHeader from "../LessonHeader";
-import LessonNavigation from "../LessonNavigation";
-import LessonSidebar from "../LessonSidebar";
 import LessonProgressTracker from "../LessonProgressTracker";
 import LessonQuizQuestion, {
   getQuizOptionClass,
@@ -16,6 +14,7 @@ import LessonQuizQuestion, {
   QUIZ_SUBMIT_BUTTON_CLASS,
 } from "../LessonQuizQuestion";
 import { useLessonQuizResult } from "../useLessonQuizResult";
+import { useShuffledQuestionOrder } from "../quizRandomization";
 
 /* ---------- Shared styles ---------- */
 const card = "rounded-3xl border border-white/10 bg-[#111A2E] p-6 md:p-8";
@@ -24,19 +23,6 @@ const inputClass =
 const formulaBox = "my-4 rounded-xl bg-slate-900 p-4 text-center font-mono text-xl";
 const quizFocus =
   "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-300";
-
-const lessonSections = [
-  { id: "electric-charge", label: "Electric charge" },
-  { id: "charge-properties", label: "Properties of charge" },
-  { id: "conductors-insulators", label: "Conductors & insulators" },
-  { id: "coulombs-law", label: "Coulomb’s law" },
-  { id: "coulomb-calculator", label: "Coulomb’s law calculator" },
-  { id: "electric-field", label: "Electric field" },
-  { id: "test-charge-force", label: "Force on a test charge" },
-  { id: "ohms-law", label: "Ohm’s law calculator" },
-  { id: "circuit-builder", label: "Circuit builder" },
-  { id: "quiz", label: "Quiz" },
-];
 
 /* ---------- Helpers ---------- */
 const K = 8.99e9; // Coulomb's constant (N·m²/C²)
@@ -258,6 +244,7 @@ const questions: Question[] = [
     why: "F = E|q₀| = (2.0 N/C)(18 × 10⁻⁸ C) = 3.6 × 10⁻⁷ N.",
   },
 ];
+const quizOptionCounts = questions.map((question) => question.options.length);
 
 export default function ElectrostaticsLesson() {
   /* Coulomb calculator (inputs kept as text so empty/invalid input can be detected) */
@@ -270,8 +257,13 @@ export default function ElectrostaticsLesson() {
   const [testCharge, setTestCharge] = useState("2");
   const [voltageInput, setVoltageInput] = useState("12");
   const [resistanceInput, setResistanceInput] = useState("6");
+  const [batteryVoltageInput, setBatteryVoltageInput] = useState("9");
+  const [resistorResistanceInput, setResistorResistanceInput] = useState("100");
+  const [bulbResistanceInput, setBulbResistanceInput] = useState("20");
   const [circuitComponents, setCircuitComponents] = useState<CircuitComponent[]>([]);
   const [nextCircuitId, setNextCircuitId] = useState(0);
+  const [showCoulombSolution, setShowCoulombSolution] = useState(false);
+  const [showFieldSolution, setShowFieldSolution] = useState(false);
 
   /* Quiz: answers maps question index -> chosen option index */
   const [answers, setAnswers] = useState<Record<number, number>>({});
@@ -283,6 +275,20 @@ export default function ElectrostaticsLesson() {
     saveResult,
     resetResult,
   } = useLessonQuizResult();
+  const [quizOrder, reshuffleQuiz] =
+    useShuffledQuestionOrder(quizOptionCounts);
+  const quizAttempt = quizOrder.map(({ questionIndex, optionOrder }) => {
+    const question = questions[questionIndex];
+
+    return {
+      ...question,
+      options: optionOrder.map((optionIndex) => question.options[optionIndex]),
+      answer: optionOrder.indexOf(question.answer),
+      questionIndex,
+      originalOptions: question.options,
+      optionOrder,
+    };
+  });
 
   /* ----- Coulomb's law calculation ----- */
   const q1Num = parseInput(q1);
@@ -325,11 +331,11 @@ export default function ElectrostaticsLesson() {
   }
 
   /* ----- Quiz scoring (only meaningful after submission) ----- */
-  const score = questions.filter((item, i) => answers[i] === item.answer).length;
+  const score = quizAttempt.filter((item, i) => answers[i] === item.answer).length;
   const answeredCount = Object.keys(answers).length;
-  const missed = questions
+  const missed = quizAttempt
     .map((_, index) => index)
-    .filter((index) => answers[index] !== questions[index].answer);
+    .filter((index) => answers[index] !== quizAttempt[index].answer);
 
   function chooseAnswer(questionIndex: number, optionIndex: number) {
     if (submitted) return; // answers are locked after submission
@@ -340,6 +346,7 @@ export default function ElectrostaticsLesson() {
     setAnswers({});
     setSubmitted(false);
     resetResult();
+    reshuffleQuiz();
     document.getElementById("quiz")?.scrollIntoView({ behavior: "smooth" });
   }
 
@@ -347,11 +354,13 @@ export default function ElectrostaticsLesson() {
     setSubmitted(true);
     void saveResult(
       "electricity",
-      questions.map((_, index) => answers[index] ?? -1),
-      questions.map((question) => ({
+      quizAttempt.map((_, index) => answers[index] ?? -1),
+      quizAttempt.map((question) => ({
         question: question.q,
-        choices: question.options,
+        choices: question.originalOptions,
         explanation: question.why,
+        questionIndex: question.questionIndex,
+        optionOrder: question.optionOrder,
       }))
     );
   }
@@ -383,6 +392,9 @@ export default function ElectrostaticsLesson() {
             hint="Resistance must be greater than zero."
           />
         </div>
+        <button type="button" onClick={() => { setVoltageInput("12"); setResistanceInput("6"); }} className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-sm font-semibold text-slate-300 transition hover:bg-white/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-300">
+          <RotateCcw size={15} /> Reset defaults
+        </button>
         {!valid ? (
           <p role="alert" className="mt-4 rounded-xl border border-rose-400/30 bg-rose-400/5 p-3 text-sm text-rose-200">
             Enter a non-negative voltage and a positive resistance.
@@ -420,12 +432,27 @@ export default function ElectrostaticsLesson() {
     title: string;
     detail: string;
   }[] = [
-    { kind: "battery", title: "9 V battery", detail: "Series-aiding source" },
-    { kind: "resistor", title: "Resistor", detail: "100 Ω model" },
-    { kind: "bulb", title: "Light bulb", detail: "20 Ω model" },
+    { kind: "battery", title: "Battery", detail: "Series-aiding source" },
+    { kind: "resistor", title: "Resistor", detail: "Editable resistance" },
+    { kind: "bulb", title: "Light bulb", detail: "Editable resistance" },
   ];
 
   function renderCircuitBuilder() {
+    const batteryVoltage = parseInput(batteryVoltageInput);
+    const resistorResistance = parseInput(resistorResistanceInput);
+    const bulbResistance = parseInput(bulbResistanceInput);
+    const circuitErrors: string[] = [];
+    if (!Number.isFinite(batteryVoltage) || batteryVoltage < 0) {
+      circuitErrors.push("Battery voltage must be a valid value of zero or greater.");
+    }
+    if (!Number.isFinite(resistorResistance) || resistorResistance <= 0) {
+      circuitErrors.push("Resistor resistance must be greater than zero.");
+    }
+    if (!Number.isFinite(bulbResistance) || bulbResistance <= 0) {
+      circuitErrors.push("Bulb resistance must be greater than zero.");
+    }
+    const circuitValid = circuitErrors.length === 0;
+
     function addComponent(kind: CircuitComponentKind) {
       setCircuitComponents((current) => [
         ...current,
@@ -457,13 +484,15 @@ export default function ElectrostaticsLesson() {
     const batteryCount = circuitComponents.filter((item) => item.kind === "battery").length;
     const resistorCount = circuitComponents.filter((item) => item.kind === "resistor").length;
     const bulbCount = circuitComponents.filter((item) => item.kind === "bulb").length;
-    const sourceVoltage = batteryCount * 9;
-    const equivalentResistance = resistorCount * 100 + bulbCount * 20;
+    const sourceVoltage = circuitValid ? batteryCount * batteryVoltage : NaN;
+    const equivalentResistance = circuitValid
+      ? resistorCount * resistorResistance + bulbCount * bulbResistance
+      : NaN;
     const current =
-      batteryCount > 0 && equivalentResistance > 0
+      circuitValid && batteryCount > 0 && equivalentResistance > 0
         ? sourceVoltage / equivalentResistance
         : 0;
-    const bulbPower = current * current * 20;
+    const bulbPower = circuitValid ? current * current * bulbResistance : 0;
     const referenceBulbPower = (9 * 9) / 20;
     const bulbBrightness = Math.min(1, bulbPower / referenceBulbPower);
 
@@ -474,11 +503,20 @@ export default function ElectrostaticsLesson() {
         </h2>
         <p className="mb-5 text-sm leading-6 text-slate-400">
           Drag a component into the series-loop workbench, or select its button
-          for keyboard and touch access. Each battery is modeled as an ideal 9 V
-          source oriented to aid the others; resistors and bulbs use the fixed
-          model values shown. The simulator is an introductory DC model, not a
+          for keyboard and touch access. Batteries are modeled as ideal
+          series-aiding sources; resistors and bulbs use the editable model
+          values below. The simulator is an introductory DC model, not a
           detailed filament or transient simulation.
         </p>
+        <div className="mb-5 grid gap-4 md:grid-cols-3">
+          <NumberField label="Battery voltage (V)" value={batteryVoltageInput} onChange={setBatteryVoltageInput} hint="Use zero or a positive voltage." />
+          <NumberField label="Resistor resistance (Ω)" value={resistorResistanceInput} onChange={setResistorResistanceInput} hint="Must be greater than zero." />
+          <NumberField label="Bulb resistance (Ω)" value={bulbResistanceInput} onChange={setBulbResistanceInput} hint="Must be greater than zero." />
+        </div>
+        <button type="button" onClick={() => { setBatteryVoltageInput("9"); setResistorResistanceInput("100"); setBulbResistanceInput("20"); setCircuitComponents([]); }} className="mb-5 inline-flex min-h-10 items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-sm font-semibold text-slate-300 transition hover:bg-white/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300">
+          <RotateCcw size={15} /> Reset simulator defaults
+        </button>
+        {circuitErrors.length > 0 && <div role="alert" className="mb-5 rounded-xl border border-rose-400/30 bg-rose-400/5 p-3 text-sm text-rose-200">{circuitErrors.map((message) => <p key={message}>{message}</p>)}</div>}
         <div className="grid gap-5 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
           <div>
             <h3 className="mb-3 font-semibold text-slate-200">Components</h3>
@@ -494,7 +532,7 @@ export default function ElectrostaticsLesson() {
                   aria-label={`Add ${item.title} to the circuit`}
                 >
                   <span className="block font-semibold text-emerald-200">{item.title}</span>
-                  <span className="mt-1 block text-xs text-slate-400">{item.detail} · drag or select</span>
+                  <span className="mt-1 block text-xs text-slate-400">{item.kind === "battery" ? `${circuitValid ? formatValue(batteryVoltage) : "—"} V · ` : item.kind === "resistor" ? `${circuitValid ? formatValue(resistorResistance) : "—"} Ω · ` : `${circuitValid ? formatValue(bulbResistance) : "—"} Ω · `}{item.detail} · drag or select</span>
                 </button>
               ))}
             </div>
@@ -529,9 +567,15 @@ export default function ElectrostaticsLesson() {
                     return (
                       <div key={item.id} className="flex items-center gap-2">
                         {index > 0 && <span aria-hidden="true" className="text-emerald-300">→</span>}
-                        <div className={`rounded-lg border px-3 py-2 text-center ${item.kind === "bulb" && bulbBrightness > 0 ? "border-amber-300/60 bg-amber-300/10" : "border-white/10 bg-[#111A2E]"}`}>
+                        <div
+                          className={`rounded-lg border px-3 py-2 text-center ${item.kind === "bulb" && bulbBrightness > 0 ? "border-amber-300/60" : "border-white/10 bg-[#111A2E]"}`}
+                          style={item.kind === "bulb" && bulbBrightness > 0 ? {
+                            backgroundColor: `rgba(252, 211, 77, ${bulbBrightness * 0.3})`,
+                            boxShadow: `0 0 ${bulbBrightness * 24}px rgba(252, 211, 77, ${bulbBrightness * 0.65})`,
+                          } : undefined}
+                        >
                           <p className="text-xs font-bold text-slate-200">{paletteItem?.title}</p>
-                          <p className="text-[11px] text-slate-400">{paletteItem?.detail}</p>
+                          <p className="text-[11px] text-slate-400">{item.kind === "battery" ? `${circuitValid ? formatValue(batteryVoltage) : "—"} V` : item.kind === "resistor" ? `${circuitValid ? formatValue(resistorResistance) : "—"} Ω` : `${circuitValid ? formatValue(bulbResistance) : "—"} Ω`}</p>
                         </div>
                         <button
                           type="button"
@@ -553,21 +597,23 @@ export default function ElectrostaticsLesson() {
             <div aria-live="polite" className="mt-4 grid gap-3 sm:grid-cols-3">
               <div className="rounded-xl bg-white/5 p-3">
                 <p className="text-xs text-slate-400">Source voltage</p>
-                <p className="mt-1 font-bold text-sky-200">{sourceVoltage} V</p>
+                <p className="mt-1 font-bold text-sky-200">{circuitValid ? `${formatValue(sourceVoltage)} V` : "—"}</p>
               </div>
               <div className="rounded-xl bg-white/5 p-3">
                 <p className="text-xs text-slate-400">Series resistance</p>
-                <p className="mt-1 font-bold text-violet-200">{equivalentResistance} Ω</p>
+                <p className="mt-1 font-bold text-violet-200">{circuitValid ? `${formatValue(equivalentResistance)} Ω` : "—"}</p>
               </div>
               <div className="rounded-xl bg-white/5 p-3">
                 <p className="text-xs text-slate-400">Circuit current</p>
-                <p className="mt-1 font-bold text-emerald-200">{formatValue(current)} A</p>
+                <p className="mt-1 font-bold text-emerald-200">{circuitValid ? `${formatValue(current)} A` : "—"}</p>
               </div>
             </div>
             <p className="mt-3 text-xs leading-5 text-slate-500">
-              {bulbCount > 0 && batteryCount > 0 && equivalentResistance > 0
-                ? `Bulb power is approximately ${formatValue(bulbPower)} W each in this fixed-resistance model.`
-                : "A closed path with a source and resistance is required for nonzero current."}
+              {circuitValid && bulbCount > 0 && batteryCount > 0 && equivalentResistance > 0
+                ? `Bulb power is approximately ${formatValue(bulbPower)} W each in this constant-resistance model.`
+                : circuitValid
+                  ? "A closed path with a source and resistance is required for nonzero current."
+                  : "Correct the component values above to calculate current and bulb power."}
             </p>
           </div>
         </div>
@@ -576,12 +622,10 @@ export default function ElectrostaticsLesson() {
   }
 
   return (
-    <main className="flex h-dvh flex-col overflow-hidden bg-[#080D1B] text-slate-100">
-      <LessonNavigation />
+    <main className="flex h-full min-h-0 flex-col overflow-hidden bg-[#080D1B] text-slate-100">
 
-      <div className="grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] md:grid-rows-1 md:grid-cols-[250px_minmax(0,1fr)]">
-        <LessonSidebar sections={lessonSections} accentClass="text-emerald-300" />
-        <div id="lesson-main-scroll" className="min-w-0 overflow-y-auto overscroll-contain px-4 py-6 sm:px-6 lg:px-10">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <div id="lesson-main-scroll" className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain px-4 py-6 sm:px-6 lg:px-10">
         <div className="mx-auto w-full max-w-[1600px]">
         <LessonProgressTracker lessonSlug="electricity" />
         <LessonHeader
@@ -713,10 +757,17 @@ export default function ElectrostaticsLesson() {
           <div className="mt-5 rounded-xl border border-slate-700 bg-slate-900/70 p-4 text-sm leading-7 text-slate-300">
             <p className="font-semibold text-sky-300">Worked example (from the lecture)</p>
             <p>Two objects with charges +1.0 C and −1.0 C are 1.0 km apart. Find the force magnitude.</p>
-            <p><b className="text-white">Given:</b> q₁ = +1.0 C, q₂ = −1.0 C, r = 1.0 km = 1000 m</p>
-            <p><b className="text-white">Formula:</b> F = k|q₁q₂|/r²</p>
-            <p><b className="text-white">Substitute:</b> F = (8.99 × 10⁹)(1.0)(1.0) / (1000)² = (8.99 × 10⁹) / (1 × 10⁶)</p>
-            <p><b className="text-white">Answer:</b> F = 8.99 × 10³ N, attractive (opposite signs).</p>
+            <button type="button" aria-expanded={showCoulombSolution} onClick={() => setShowCoulombSolution((shown) => !shown)} className="mt-3 inline-flex min-h-10 items-center rounded-lg border border-sky-300/30 px-3 py-2 text-sm font-semibold text-sky-200 hover:bg-sky-300/10">
+              {showCoulombSolution ? "Hide Solution" : "Show Solution"}
+            </button>
+            {showCoulombSolution && <ol className="mt-3 space-y-1">
+              <li><b className="text-white">Given:</b> q₁ = +1.0 C, q₂ = −1.0 C, r = 1.0 km = 1000 m; k = 8.99 × 10⁹ N·m²/C².</li>
+              <li><b className="text-white">Find:</b> Force magnitude F and whether the force is attractive or repulsive.</li>
+              <li><b className="text-white">Formula:</b> F = k|q₁q₂|/r².</li>
+              <li><b className="text-white">Substitution:</b> F = (8.99 × 10⁹ N·m²/C²)|(+1.0 C)(−1.0 C)|/(1000 m)².</li>
+              <li><b className="text-white">Calculation:</b> F = (8.99 × 10⁹ N·m²)/(1.0 × 10⁶ m²) = 8.99 × 10³ N.</li>
+              <li className="rounded-lg bg-emerald-400/5 p-2 font-semibold text-emerald-300"><b>Final Answer:</b> F = 8.99 × 10³ N, attractive because the charges have opposite signs.</li>
+            </ol>}
           </div>
         </section>
 
@@ -733,6 +784,9 @@ export default function ElectrostaticsLesson() {
             <NumberField label="Charge q₂ (μC)" value={q2} onChange={setQ2} hint="Use a minus sign for negative charge" />
             <NumberField label="Distance r (m)" value={distance} onChange={setDistance} hint="Must be greater than 0" />
           </div>
+          <button type="button" onClick={() => { setQ1("2"); setQ2("-3"); setDistance("0.5"); }} className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-sm font-semibold text-slate-300 transition hover:bg-white/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-300">
+            <RotateCcw size={15} /> Reset defaults
+          </button>
 
           {coulombErrors.length > 0 && (
             <div role="alert" className="mt-4 rounded-xl border border-amber-400/40 bg-amber-400/10 p-3 text-sm text-amber-200">
@@ -797,9 +851,17 @@ export default function ElectrostaticsLesson() {
           <div className="mt-5 rounded-xl border border-slate-700 bg-slate-900/70 p-4 text-sm leading-7 text-slate-300">
             <p className="font-semibold text-violet-300">Worked example (from the lecture)</p>
             <p>A spot has an electric field of magnitude 2.0 N/C. Find the force on a charge placed there if (a) q₀ = +18 × 10⁻⁸ C and (b) q₀ = −24 × 10⁻⁸ C.</p>
-            <p><b className="text-white">Formula:</b> F = E|q₀|</p>
-            <p><b className="text-white">(a)</b> F = (2.0 N/C)(18 × 10⁻⁸ C) = 3.6 × 10⁻⁷ N, in the direction of the field.</p>
-            <p><b className="text-white">(b)</b> F = (2.0 N/C)(24 × 10⁻⁸ C) = 4.8 × 10⁻⁷ N, opposite to the field.</p>
+            <button type="button" aria-expanded={showFieldSolution} onClick={() => setShowFieldSolution((shown) => !shown)} className="mt-3 inline-flex min-h-10 items-center rounded-lg border border-violet-300/30 px-3 py-2 text-sm font-semibold text-violet-200 hover:bg-violet-300/10">
+              {showFieldSolution ? "Hide Solution" : "Show Solution"}
+            </button>
+            {showFieldSolution && <ol className="mt-3 space-y-1">
+              <li><b className="text-white">Given:</b> E = 2.0 N/C; (a) q₀ = +18 × 10⁻⁸ C; (b) q₀ = −24 × 10⁻⁸ C.</li>
+              <li><b className="text-white">Find:</b> Force magnitude and direction for each test charge.</li>
+              <li><b className="text-white">Formula:</b> F = E|q₀|; a positive charge feels force with the field, and a negative charge against it.</li>
+              <li><b className="text-white">Substitution:</b> (a) F = (2.0 N/C)|+18 × 10⁻⁸ C|; (b) F = (2.0 N/C)|−24 × 10⁻⁸ C|.</li>
+              <li><b className="text-white">Calculation:</b> (a) F = 3.6 × 10⁻⁷ N; (b) F = 4.8 × 10⁻⁷ N.</li>
+              <li className="rounded-lg bg-emerald-400/5 p-2 font-semibold text-emerald-300"><b>Final Answer:</b> (a) 3.6 × 10⁻⁷ N along the field; (b) 4.8 × 10⁻⁷ N opposite the field.</li>
+            </ol>}
           </div>
         </section>
 
@@ -814,6 +876,9 @@ export default function ElectrostaticsLesson() {
             <NumberField label="Electric field E (N/C)" value={electricField} onChange={setElectricField} hint="Magnitude of the field (0 or greater)" />
             <NumberField label="Test charge q₀ (μC)" value={testCharge} onChange={setTestCharge} hint="Use a minus sign for a negative charge" />
           </div>
+          <button type="button" onClick={() => { setElectricField("2"); setTestCharge("2"); }} className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-sm font-semibold text-slate-300 transition hover:bg-white/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-300">
+            <RotateCcw size={15} /> Reset defaults
+          </button>
 
           {fieldErrors.length > 0 && (
             <div role="alert" className="mt-4 rounded-xl border border-amber-400/40 bg-amber-400/10 p-3 text-sm text-amber-200">
@@ -854,7 +919,7 @@ export default function ElectrostaticsLesson() {
                 CHECK YOUR KNOWLEDGE
               </p>
               <h2 className="mt-2 text-2xl font-bold md:text-3xl">
-                Electricity · {questions.length} questions
+                Electricity · {quizAttempt.length} questions
               </h2>
               <p className="mt-2 text-sm leading-6 text-slate-400">
                 Answer every question. Your score and explanations appear after submission.
@@ -863,13 +928,13 @@ export default function ElectrostaticsLesson() {
             <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-5 py-3">
               <p className="text-sm text-slate-300">Your score</p>
               <p className="text-2xl font-black text-emerald-300">
-                {submitted ? `${score} / ${questions.length}` : `${answeredCount} / ${questions.length}`}
+                {submitted ? `${score} / ${quizAttempt.length}` : `${answeredCount} / ${quizAttempt.length}`}
               </p>
             </div>
           </div>
 
-          <div className="mb-6 h-2 overflow-hidden rounded-full bg-white/10" role="progressbar" aria-label="Quiz questions answered" aria-valuemin={0} aria-valuemax={questions.length} aria-valuenow={answeredCount}>
-            <div className="h-full rounded-full bg-sky-400 transition-all" style={{ width: `${(answeredCount / questions.length) * 100}%` }} />
+          <div className="mb-6 h-2 overflow-hidden rounded-full bg-white/10" role="progressbar" aria-label="Quiz questions answered" aria-valuemin={0} aria-valuemax={quizAttempt.length} aria-valuenow={answeredCount}>
+            <div className="h-full rounded-full bg-sky-400 transition-all" style={{ width: `${(answeredCount / quizAttempt.length) * 100}%` }} />
           </div>
 
           <div className="mb-6 rounded-xl bg-[#080D1B] p-4 text-sm leading-6 text-slate-400">
@@ -905,7 +970,7 @@ export default function ElectrostaticsLesson() {
           )}
 
           <div className="space-y-6">
-            {questions.map((item, i) => {
+            {quizAttempt.map((item, i) => {
               const selected = answers[i];
               const isMissed = submitted && selected !== item.answer;
 
@@ -1013,7 +1078,7 @@ export default function ElectrostaticsLesson() {
             {!submitted ? (
               <button
                 type="button"
-                disabled={answeredCount !== questions.length}
+                disabled={answeredCount !== quizAttempt.length}
                 onClick={submitQuiz}
                 className={`${QUIZ_SUBMIT_BUTTON_CLASS} ${quizFocus}`}
               >
@@ -1037,11 +1102,13 @@ export default function ElectrostaticsLesson() {
             onRetry={() =>
               void saveResult(
                 "electricity",
-                questions.map((_, index) => answers[index] ?? -1),
-                questions.map((question) => ({
+                quizAttempt.map((_, index) => answers[index] ?? -1),
+                quizAttempt.map((question) => ({
                   question: question.q,
-                  choices: question.options,
+                  choices: question.originalOptions,
                   explanation: question.why,
+                  questionIndex: question.questionIndex,
+                  optionOrder: question.optionOrder,
                 }))
               )
             }
@@ -1051,9 +1118,6 @@ export default function ElectrostaticsLesson() {
         <div className="mt-7 flex justify-between text-sm">
           <Link href="/lessons/optics" className="text-slate-300 hover:text-sky-300">
             ← Light & Reflection
-          </Link>
-          <Link href="/dashboard" className="text-sky-300 hover:text-white">
-            Back to dashboard →
           </Link>
         </div>
         </div>

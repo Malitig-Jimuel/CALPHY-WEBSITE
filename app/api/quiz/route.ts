@@ -1,4 +1,3 @@
-
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
@@ -59,17 +58,37 @@ const questions = [
   },
 ];
 
+type SubmittedAnswer = {
+  questionId: number;
+  selectedOptionId: number;
+  optionOrder: number[];
+};
+
+function isSubmittedAnswer(value: unknown): value is SubmittedAnswer {
+  if (!value || typeof value !== "object") return false;
+  const answer = value as Record<string, unknown>;
+
+  return (
+    typeof answer.questionId === "number" &&
+    Number.isInteger(answer.questionId) &&
+    typeof answer.selectedOptionId === "number" &&
+    Number.isInteger(answer.selectedOptionId) &&
+    Array.isArray(answer.optionOrder) &&
+    answer.optionOrder.length === 4 &&
+    answer.optionOrder.every(
+      (index) =>
+        typeof index === "number" &&
+        Number.isInteger(index) &&
+        index >= 0 &&
+        index < 4
+    ) &&
+    new Set(answer.optionOrder).size === 4
+  );
+}
+
 export async function POST(request: Request) {
   try {
     const session = await auth();
-
-    if (!session?.user?.email) {
-      return NextResponse.json(
-        { error: "Please log in to save your quiz result." },
-        { status: 401 }
-      );
-    }
-
     const body: unknown = await request.json();
 
     if (!body || typeof body !== "object") {
@@ -84,7 +103,8 @@ export async function POST(request: Request) {
     if (
       data.quizSlug !== QUIZ_ID ||
       !Array.isArray(data.answers) ||
-      data.answers.length !== questions.length
+      data.answers.length !== questions.length ||
+      !data.answers.every(isSubmittedAnswer)
     ) {
       return NextResponse.json(
         { error: "Invalid quiz submission." },
@@ -92,57 +112,67 @@ export async function POST(request: Request) {
       );
     }
 
-    const selectedIndexes: number[] = [];
+    const submittedAnswers = data.answers;
+    const seenQuestionIds = new Set(
+      submittedAnswers.map((answer) => answer.questionId)
+    );
 
-    for (const answer of data.answers) {
-      if (
-        !answer ||
-        typeof answer !== "object" ||
-        !Number.isInteger(
-          (answer as Record<string, unknown>).selectedAnswer
-        )
-      ) {
-        return NextResponse.json(
-          { error: "One or more submitted answers are invalid." },
-          { status: 400 }
-        );
-      }
-
-      const selected = (answer as Record<string, unknown>).selectedAnswer;
-
-      if (typeof selected !== "number" || selected < 0 || selected > 3) {
-        return NextResponse.json(
-          { error: "Answer choices must be between 0 and 3." },
-          { status: 400 }
-        );
-      }
-
-      selectedIndexes.push(selected);
+    if (
+      seenQuestionIds.size !== questions.length ||
+      submittedAnswers.some(
+        (answer) =>
+          answer.questionId < 0 ||
+          answer.questionId >= questions.length ||
+          answer.selectedOptionId < 0 ||
+          answer.selectedOptionId >= questions[answer.questionId].options.length
+      )
+    ) {
+      return NextResponse.json(
+        { error: "Question or answer order is invalid." },
+        { status: 400 }
+      );
     }
 
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-      select: { id: true },
-    });
+    const user = session?.user?.id
+      ? await prisma.user.findUnique({
+          where: { id: session.user.id },
+          select: { id: true },
+        })
+      : null;
 
-    if (!user) {
+    if (session?.user?.id && !user) {
       return NextResponse.json(
         { error: "User account not found." },
         { status: 404 }
       );
     }
 
-    const answerRecords = questions.map((question, index) => ({
-      questionId: question.id,
-      questionText: question.text,
-      selectedAnswer: question.options[selectedIndexes[index]],
-      correctAnswer: question.options[question.correctIndex],
-      choices: JSON.stringify(question.options),
-      explanation: question.explanation,
-      isCorrect: selectedIndexes[index] === question.correctIndex,
-    }));
+    const answerRecords = submittedAnswers.map((submitted) => {
+      const question = questions[submitted.questionId];
+      const displayedChoices = submitted.optionOrder.map(
+        (optionIndex) => question.options[optionIndex]
+      );
+
+      return {
+        questionId: question.id,
+        questionText: question.text,
+        selectedAnswer: question.options[submitted.selectedOptionId],
+        correctAnswer: question.options[question.correctIndex],
+        choices: JSON.stringify(displayedChoices),
+        explanation: question.explanation,
+        isCorrect: submitted.selectedOptionId === question.correctIndex,
+      };
+    });
 
     const score = answerRecords.filter((answer) => answer.isCorrect).length;
+
+    if (!user) {
+      return NextResponse.json({
+        saved: false,
+        score,
+        totalQuestions: questions.length,
+      });
+    }
 
     const attempt = await prisma.quizAttempt.create({
       data: {
@@ -150,13 +180,9 @@ export async function POST(request: Request) {
         quizId: QUIZ_ID,
         score,
         totalQuestions: questions.length,
-        answers: {
-          create: answerRecords,
-        },
+        answers: { create: answerRecords },
       },
-      include: {
-        answers: true,
-      },
+      include: { answers: true },
     });
 
     revalidateQuizPages();
@@ -164,6 +190,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         message: "Quiz result saved successfully.",
+        saved: true,
         attempt: {
           id: attempt.id,
           quizId: attempt.quizId,

@@ -2,12 +2,13 @@
 
 import { useState } from "react";
 
-type SaveState = "idle" | "saving" | "saved" | "error";
+type SaveState = "idle" | "saving" | "saved" | "guest" | "error";
 export type LessonQuizQuestionSnapshot = {
   question: string;
   choices: string[];
   explanation: string;
-  optionOrder?: number[];
+  questionIndex: number;
+  optionOrder: number[];
 };
 
 export function useLessonQuizResult() {
@@ -36,17 +37,33 @@ export function useLessonQuizResult() {
         throw new Error(result.error || "Could not save your quiz result.");
       }
 
-      if (typeof result.passed !== "boolean") {
+      if (
+        typeof result.passed !== "boolean" ||
+        typeof result.saved !== "boolean"
+      ) {
         throw new Error("The quiz result could not be confirmed.");
       }
 
       setPassed(result.passed);
-      setSaveState("saved");
-      setSaveMessage(
-        result.passed
-          ? "Your result was saved and this module is complete on your dashboard."
+      setSaveState(result.saved ? "saved" : "guest");
+      if (result.saved) {
+        window.dispatchEvent(
+          new CustomEvent("calph-learning-progress-updated", {
+            detail: {
+              lessonSlug,
+              completed:
+                typeof result.moduleCompleted === "boolean"
+                  ? result.moduleCompleted
+                  : result.passed,
+            },
+          })
+        );
+      }
+      setSaveMessage(result.saved
+        ? result.passed
+          ? "Your result was saved and this module is complete."
           : "Your result was saved. Score at least 60% to complete this module."
-      );
+        : "Your score is shown for this session only. Register or log in to save quiz results and track progress.");
     } catch (error) {
       setSaveState("error");
       setSaveMessage(

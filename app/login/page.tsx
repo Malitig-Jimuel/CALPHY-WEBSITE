@@ -3,10 +3,12 @@
 
 import { FormEvent, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Atom, Eye, EyeOff, LoaderCircle, ArrowLeft } from "lucide-react";
 import { signIn } from "next-auth/react";
 
 export default function LoginPage() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -31,7 +33,7 @@ async function handleSubmit(event: FormEvent<HTMLFormElement>) {
       return;
     }
 
-    window.location.href = "/dashboard";
+    router.replace("/home");
   } catch {
     setError("Unable to log in. Please try again.");
   } finally {
@@ -129,7 +131,7 @@ async function handleSubmit(event: FormEvent<HTMLFormElement>) {
           </form>
 
           <p className="mt-7 text-center text-sm text-slate-400">
-            Don't have an account?{" "}
+            Don&apos;t have an account?{" "}
             <Link href="/register" className="font-semibold text-sky-300 hover:text-sky-200">
               Create one
             </Link>

@@ -3,12 +3,14 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import Link from "next/link";
 import {
   CheckCircle2,
   RotateCcw,
   Save,
   XCircle,
 } from "lucide-react";
+import { useShuffledQuestionOrder } from "../lessons/quizRandomization";
 
 const questions = [
   {
@@ -60,10 +62,13 @@ const questions = [
   },
 ];
 
-type SaveState = "idle" | "saving" | "saved" | "error";
+type SaveState = "idle" | "saving" | "saved" | "guest" | "error";
+const questionOptionCounts = questions.map((question) => question.options.length);
 
-export default function DashboardChallenge() {
+export default function QuickPhysicsChallenge() {
   const router = useRouter();
+  const [questionOrder, reshuffleQuestions] =
+    useShuffledQuestionOrder(questionOptionCounts);
   const [questionIndex, setQuestionIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [answers, setAnswers] = useState<number[]>([]);
@@ -73,7 +78,18 @@ export default function DashboardChallenge() {
   const [saveMessage, setSaveMessage] = useState("");
   const [attemptId, setAttemptId] = useState<string | null>(null);
 
-  const currentQuestion = questions[questionIndex];
+  const challengeQuestions = questionOrder.map(
+    ({ questionIndex: originalIndex, optionOrder }) => ({
+      ...questions[originalIndex],
+      options: optionOrder.map(
+        (optionIndex) => questions[originalIndex].options[optionIndex]
+      ),
+      answer: optionOrder.indexOf(questions[originalIndex].answer),
+      questionId: originalIndex,
+      optionOrder,
+    })
+  );
+  const currentQuestion = challengeQuestions[questionIndex];
   const isCorrect = selectedAnswer === currentQuestion.answer;
 
   function chooseAnswer(index: number) {
@@ -101,8 +117,10 @@ export default function DashboardChallenge() {
         credentials: "same-origin",
         body: JSON.stringify({
           quizSlug: "dashboard-physics",
-          answers: finalAnswers.map((selectedAnswer) => ({
-            selectedAnswer,
+          answers: challengeQuestions.map((question, index) => ({
+            questionId: question.questionId,
+            selectedOptionId: question.optionOrder[finalAnswers[index]],
+            optionOrder: question.optionOrder,
           })),
         }),
       });
@@ -113,10 +131,21 @@ export default function DashboardChallenge() {
         throw new Error(result.error || "Could not save your quiz result.");
       }
 
-      setSaveState("saved");
-      setSaveMessage("Your result has been saved to your account.");
-      setAttemptId(result.attempt.id);
-      router.refresh();
+      if (typeof result.saved !== "boolean") {
+        throw new Error("The challenge result could not be confirmed.");
+      }
+
+      if (result.saved) {
+        setSaveState("saved");
+        setSaveMessage("Your result has been saved to your account.");
+        setAttemptId(result.attempt.id);
+        router.refresh();
+      } else {
+        setSaveState("guest");
+        setSaveMessage(
+          "Your score is shown for this session only. Register or log in to save quiz results and track progress."
+        );
+      }
     } catch (error) {
       setSaveState("error");
       setSaveMessage(
@@ -149,10 +178,11 @@ export default function DashboardChallenge() {
     setSaveState("idle");
     setSaveMessage("");
     setAttemptId(null);
+    reshuffleQuestions();
   }
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-[#10182B] p-5 sm:p-8">
+    <div className="rounded-2xl border border-slate-700/60 bg-[#10182B] p-5 sm:p-8">
       {finished ? (
         <div className="py-6 text-center">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-sky-400/10 text-sky-300">
@@ -206,7 +236,9 @@ export default function DashboardChallenge() {
                       ? "Result saved"
                       : saveState === "error"
                         ? "Could not save result"
-                        : "Quiz result"}
+                        : saveState === "guest"
+                          ? "Quiz result · Not saved"
+                          : "Quiz result"}
                 </p>
 
                 {saveMessage && (
@@ -218,6 +250,16 @@ export default function DashboardChallenge() {
                 {attemptId && (
                   <p className="mt-2 break-all text-xs text-slate-500">
                     Attempt ID: {attemptId}
+                  </p>
+                )}
+                {saveState === "guest" && (
+                  <p className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
+                    <Link className="font-semibold text-sky-300 hover:text-sky-200" href="/register">
+                      Create an account
+                    </Link>
+                    <Link className="font-semibold text-sky-300 hover:text-sky-200" href="/login">
+                      Log in
+                    </Link>
                   </p>
                 )}
               </div>
@@ -244,7 +286,7 @@ export default function DashboardChallenge() {
       ) : (
         <>
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <span className="rounded-full bg-violet-400/10 px-3 py-1.5 text-xs font-semibold text-violet-300">
+            <span className="rounded-full bg-sky-400/10 px-3 py-1.5 text-xs font-semibold text-sky-300">
               Question {questionIndex + 1} of {questions.length}
             </span>
 
@@ -255,7 +297,7 @@ export default function DashboardChallenge() {
 
           <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-white/10">
             <div
-              className="h-full rounded-full bg-violet-400 transition-all duration-300"
+              className="h-full rounded-full bg-sky-300 transition-all duration-300"
               style={{
                 width: `${((questionIndex + 1) / questions.length) * 100}%`,
               }}

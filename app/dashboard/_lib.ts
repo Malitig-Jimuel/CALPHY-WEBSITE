@@ -2,15 +2,7 @@ import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-
-export const dashboardLessons = [
-  { title: "Measurements & Vectors", slug: "measurements-vectors" },
-  { title: "Fluids", slug: "fluids" },
-  { title: "Temperature & Heat", slug: "temperature-heat" },
-  { title: "Waves & Sound", slug: "waves-sound" },
-  { title: "Light & Reflection", slug: "optics" },
-  { title: "Electric Forces & Field", slug: "electricity" },
-] as const;
+import { lessons } from "../lessonModules";
 
 export async function requireDashboardUser() {
   await connection();
@@ -35,7 +27,7 @@ export async function requireDashboardUser() {
 export function getQuizTitle(quizId: string) {
   if (quizId === "dashboard-physics") return "Quick Physics Challenge";
   return (
-    dashboardLessons.find((lesson) => lesson.slug === quizId)?.title ??
+    lessons.find((lesson) => lesson.slug === quizId)?.title ??
     "Physics quiz"
   );
 }
@@ -43,7 +35,7 @@ export function getQuizTitle(quizId: string) {
 export function getAssociatedLesson(quizId: string) {
   return quizId === "dashboard-physics"
     ? "Across all modules"
-    : dashboardLessons.find((lesson) => lesson.slug === quizId)?.title ??
+    : lessons.find((lesson) => lesson.slug === quizId)?.title ??
         "Physics module";
 }
 

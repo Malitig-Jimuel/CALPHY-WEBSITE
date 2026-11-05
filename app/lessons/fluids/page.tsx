@@ -16,8 +16,6 @@ import {
 } from "lucide-react";
 import LessonQuizFeedback from "../LessonQuizFeedback";
 import LessonHeader from "../LessonHeader";
-import LessonNavigation from "../LessonNavigation";
-import LessonSidebar from "../LessonSidebar";
 import LessonProgressTracker from "../LessonProgressTracker";
 import LessonQuizQuestion, {
   getQuizOptionClass,
@@ -26,15 +24,7 @@ import LessonQuizQuestion, {
   QUIZ_SUBMIT_BUTTON_CLASS,
 } from "../LessonQuizQuestion";
 import { useLessonQuizResult } from "../useLessonQuizResult";
-
-const lessonSections = [
-  { id: "pressure-density", label: "Pressure & density" },
-  { id: "archimedes", label: "Archimedes’ principle" },
-  { id: "continuity", label: "Continuity" },
-  { id: "bernoulli", label: "Bernoulli’s principle" },
-  { id: "torricelli", label: "Torricelli’s theorem" },
-  { id: "quiz", label: "Quiz" },
-];
+import { useShuffledQuestionOrder } from "../quizRandomization";
 
 type Question = {
   question: string;
@@ -47,6 +37,13 @@ type Example = {
   title: string;
   problem: string;
   steps: string[];
+  solution: {
+    given: string;
+    find: string;
+    formula: string;
+    substitution: string;
+    calculation: string;
+  };
   answer: string;
 };
 
@@ -208,6 +205,7 @@ const fluidQuestions: Question[] = [
       "v = √(2gh) depends only on the depth h of the hole below the surface (and gravity), not on the fluid's density or the tank's size.",
   },
 ];
+const fluidOptionCounts = fluidQuestions.map((question) => question.options.length);
 
 const formulaCards = [
   { value: "P = F / A", label: "Pressure", detail: "Force per unit area" },
@@ -215,16 +213,6 @@ const formulaCards = [
   { value: "SG = ρ / ρwater", label: "Specific gravity", detail: "Density relative to water" },
   { value: "Fᵦ = ρfluid g V", label: "Buoyant force", detail: "Weight of displaced fluid" },
   { value: "A₁v₁ = A₂v₂", label: "Continuity", detail: "Volume flow rate stays constant" },
-  { value: "v = √(2gh)", label: "Torricelli", detail: "Exit speed from a tank hole" },
-];
-
-const topicLinks = [
-  { href: "#pressure-density", label: "Pressure, specific gravity, density" },
-  { href: "#archimedes", label: "Archimedes’ principle" },
-  { href: "#continuity", label: "Rate of flow and continuity" },
-  { href: "#bernoulli", label: "Bernoulli’s principle" },
-  { href: "#torricelli", label: "Torricelli’s theorem" },
-  { href: "#quiz", label: "Quiz" },
 ];
 
 const examples: Record<string, Example> = {
@@ -237,6 +225,13 @@ const examples: Record<string, Example> = {
       "Apply P = F / A = 588.6 / 0.04",
       "P = 14,715 Pa",
     ],
+    solution: {
+      given: "Mass = 60 kg, total shoe contact area = 0.04 m², and g = 9.81 m/s².",
+      find: "The pressure exerted on the floor.",
+      formula: "P = F/A, with weight F = mg.",
+      substitution: "F = (60 kg)(9.81 m/s²) = 588.6 N; P = 588.6 N / 0.04 m².",
+      calculation: "P = 14,715 Pa ≈ 14.7 kPa.",
+    },
     answer: "P ≈ 14.7 kPa",
   },
   depth: {
@@ -248,6 +243,13 @@ const examples: Record<string, Example> = {
       "P = 1000 × 9.81 × 10",
       "P = 98,100 Pa",
     ],
+    solution: {
+      given: "Fresh water density ρ = 1000 kg/m³, depth h = 10 m, and g = 9.81 m/s².",
+      find: "The gauge pressure at that depth.",
+      formula: "Gauge pressure P = ρgh.",
+      substitution: "P = (1000 kg/m³)(9.81 m/s²)(10 m).",
+      calculation: "P = 98,100 Pa ≈ 98.1 kPa.",
+    },
     answer: "P ≈ 98.1 kPa (about 1 atmosphere, on top of the air pressure above the water)",
   },
   density: {
@@ -259,6 +261,13 @@ const examples: Record<string, Example> = {
       "Specific gravity: SG = ρ / ρwater = 800 / 1000 = 0.8",
       "SG is less than 1, so the block is less dense than water",
     ],
+    solution: {
+      given: "Mass = 2.4 kg, volume = 0.003 m³, and water density = 1000 kg/m³.",
+      find: "The block's density, specific gravity, and whether it floats in water.",
+      formula: "ρ = m/V; SG = ρ/ρwater.",
+      substitution: "ρ = 2.4 kg / 0.003 m³; SG = 800 kg/m³ / 1000 kg/m³.",
+      calculation: "ρ = 800 kg/m³ and SG = 0.8. Since SG < 1, it is less dense than water and floats.",
+    },
     answer: "ρ = 800 kg/m³, SG = 0.8, so it floats",
   },
   archimedes: {
@@ -270,6 +279,13 @@ const examples: Record<string, Example> = {
       "Actual weight: W = ρblock V g = 2700 × 0.002 × 9.81 = 52.97 N",
       "Apparent weight = W − Fᵦ = 52.97 − 19.62 = 33.35 N",
     ],
+    solution: {
+      given: "ρblock = 2700 kg/m³, ρwater = 1000 kg/m³, V = 0.002 m³, and g = 9.81 m/s².",
+      find: "The buoyant force and apparent weight when fully submerged.",
+      formula: "Fb = ρwater gV; W = ρblock Vg; apparent weight = W − Fb.",
+      substitution: "Fb = (1000)(9.81)(0.002); W = (2700)(0.002)(9.81); apparent weight = W − Fb.",
+      calculation: "Fb = 19.62 N; W ≈ 52.97 N; apparent weight ≈ 33.35 N.",
+    },
     answer: "Fᵦ = 19.62 N, apparent weight ≈ 33.35 N",
   },
   continuity: {
@@ -282,6 +298,13 @@ const examples: Record<string, Example> = {
       "Narrow area: A₂ = π(0.01)² = 3.142 × 10⁻⁴ m²",
       "Speed: v₂ = Q / A₂ = 1.885 × 10⁻³ / 3.142 × 10⁻⁴ = 6.0 m/s",
     ],
+    solution: {
+      given: "v₁ = 1.5 m/s, wide diameter = 4 cm, and narrow diameter = 2 cm.",
+      find: "The volume flow rate and speed in the narrow section.",
+      formula: "Q = A₁v₁; A = πr²; for steady incompressible flow, v₂ = Q/A₂.",
+      substitution: "A₁ = π(0.02 m)²; Q = A₁(1.5 m/s); A₂ = π(0.01 m)²; v₂ = Q/A₂.",
+      calculation: "A₁ ≈ 1.257×10⁻³ m², Q ≈ 1.885×10⁻³ m³/s, A₂ ≈ 3.142×10⁻⁴ m², and v₂ = 6.0 m/s.",
+    },
     answer: "Q ≈ 1.89 L/s and v₂ = 6.0 m/s (halving the diameter quadruples the speed)",
   },
   bernoulli: {
@@ -294,43 +317,64 @@ const examples: Record<string, Example> = {
       "P₂ = 200,000 + ½(1000)(2² − 6²) = 200,000 + 500(−32)",
       "P₂ = 200,000 − 16,000",
     ],
+    solution: {
+      given: "Horizontal water flow: P₁ = 200,000 Pa, v₁ = 2 m/s, v₂ = 6 m/s, and ρ = 1000 kg/m³.",
+      find: "The pressure in the narrow section.",
+      formula: "At equal heights, P₁ + ½ρv₁² = P₂ + ½ρv₂².",
+      substitution: "P₂ = 200,000 + ½(1000)(2² − 6²).",
+      calculation: "P₂ = 200,000 − 16,000 = 184,000 Pa.",
+    },
     answer: "P₂ = 184,000 Pa (lower pressure where the water moves faster)",
-  },
-  torricelli: {
-    title: "Example: Exit speed and flow from a tank",
-    problem:
-      "A hole of area 1 cm² is made 3.2 m below the open surface of a water tank. Find the exit speed and the flow rate through the hole. (g = 9.81 m/s²)",
-    steps: [
-      "Exit speed: v = √(2gh) = √(2 × 9.81 × 3.2) = √62.78",
-      "v ≈ 7.92 m/s",
-      "Hole area: A = 1 cm² = 1 × 10⁻⁴ m²",
-      "Flow rate: Q = Av = 1 × 10⁻⁴ × 7.92 = 7.92 × 10⁻⁴ m³/s",
-    ],
-    answer: "v ≈ 7.92 m/s and Q ≈ 0.79 L/s (ideal fluid, no friction losses)",
   },
 };
 
 function WorkedExample({ example }: { example: Example }) {
+  const [open, setOpen] = useState(false);
+
   return (
     <div className="mt-6 rounded-2xl border border-emerald-400/20 bg-emerald-400/[0.04] p-5">
       <p className="text-sm font-semibold text-emerald-300">{example.title}</p>
       <p className="mt-2 text-sm leading-6 text-slate-300">{example.problem}</p>
-      <ol className="mt-3 space-y-1 text-sm leading-6 text-slate-400">
-        {example.steps.map((step, i) => (
-          <li key={i} className="flex gap-2">
-            <span className="shrink-0 font-semibold text-emerald-300">{i + 1}.</span>
-            <span>{step}</span>
-          </li>
-        ))}
-      </ol>
-      <p className="mt-3 rounded-lg bg-white/5 px-3 py-2 text-sm font-semibold text-white">
-        Answer: {example.answer}
-      </p>
+      <button
+        type="button"
+        onClick={() => setOpen((previous) => !previous)}
+        aria-expanded={open}
+        className="mt-4 inline-flex items-center gap-2 rounded-lg border border-white/15 px-4 py-2 text-sm font-semibold transition hover:bg-white/5"
+      >
+        {open ? "Hide Solution" : "Show Solution"}
+      </button>
+      {open && (
+        <div className="mt-4 space-y-3 rounded-xl bg-white/[0.03] p-4 text-sm leading-6">
+          <div>
+            <p className="font-semibold text-sky-300">Given</p>
+            <p className="text-slate-400">{example.solution.given}</p>
+          </div>
+          <div>
+            <p className="font-semibold text-sky-300">Find</p>
+            <p className="text-slate-400">{example.solution.find}</p>
+          </div>
+          <div>
+            <p className="font-semibold text-sky-300">Formula</p>
+            <p className="text-slate-400">{example.solution.formula}</p>
+          </div>
+          <div>
+            <p className="font-semibold text-sky-300">Substitution</p>
+            <p className="text-slate-400">{example.solution.substitution}</p>
+          </div>
+          <div>
+            <p className="font-semibold text-sky-300">Calculation</p>
+            <p className="text-slate-400">{example.solution.calculation}</p>
+          </div>
+          <div>
+            <p className="font-semibold text-emerald-300">Final Answer</p>
+            <p className="font-bold text-emerald-300">{example.answer}</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-const G = 9.81;
 const WATER_DENSITY = 1000;
 
 /* ---------- Archimedes lab layout (pixels) ---------- */
@@ -405,12 +449,9 @@ export default function FluidsPage() {
   const [speedIn, setSpeedIn] = useState(2); // m/s
 
   // Bernoulli demo
-  const [flowSpeed, setFlowSpeed] = useState(50);
+  const [flowSpeed, setFlowSpeed] = useState(2.5);
   const [dots, setDots] = useState<number[][]>(initialDots);
   const flowSpeedRef = useRef(flowSpeed);
-
-  // Torricelli lab
-  const [tankHeight, setTankHeight] = useState(2); // m
 
   // Quiz
   const [answers, setAnswers] = useState<Record<number, number>>({});
@@ -422,6 +463,20 @@ export default function FluidsPage() {
     saveResult,
     resetResult,
   } = useLessonQuizResult();
+  const [quizOrder, reshuffleQuiz] =
+    useShuffledQuestionOrder(fluidOptionCounts);
+  const quizAttempt = quizOrder.map(({ questionIndex, optionOrder }) => {
+    const question = fluidQuestions[questionIndex];
+
+    return {
+      ...question,
+      options: optionOrder.map((optionIndex) => question.options[optionIndex]),
+      answer: optionOrder.indexOf(question.answer),
+      questionIndex,
+      originalOptions: question.options,
+      optionOrder,
+    };
+  });
 
   // Keep the latest slider value available to the animation loop
   useEffect(() => {
@@ -436,7 +491,7 @@ export default function FluidsPage() {
     const step = (now: number) => {
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
-      const baseSpeed = flowSpeedRef.current * 1.4; // SVG units per second in the wide section
+      const baseSpeed = flowSpeedRef.current * 28; // SVG units per second in the wide section
 
       setDots((previous) =>
         previous.map((line) =>
@@ -470,10 +525,8 @@ export default function FluidsPage() {
 
   const speedOut = (areaIn * speedIn) / areaOut; // A1v1 = A2v2
   const flowRate = (areaIn / 10000) * speedIn; // Q = Av, m³/s
-  const torricelliSpeed = Math.sqrt(2 * G * tankHeight); // v = √(2gh)
-
   // Bernoulli numbers (horizontal pipe, water): P1 + ½ρv1² = P2 + ½ρv2²
-  const vWide = (flowSpeed / 100) * 5; // m/s
+  const vWide = flowSpeed; // m/s
   const vNarrow = vWide * SPEED_RATIO; // m/s
   const pNarrow = P_UPSTREAM - 0.5 * WATER_DENSITY * (vNarrow ** 2 - vWide ** 2); // Pa
   const levelFor = (pressure: number) =>
@@ -483,7 +536,7 @@ export default function FluidsPage() {
   const wideWallTop = PIPE_CY - WIDE_H;
   const narrowWallTop = PIPE_CY - NARROW_H;
 
-  const score = fluidQuestions.reduce(
+  const score = quizAttempt.reduce(
     (total, question, index) => total + (answers[index] === question.answer ? 1 : 0),
     0
   );
@@ -493,17 +546,20 @@ export default function FluidsPage() {
     setAnswers({});
     setSubmitted(false);
     resetResult();
+    reshuffleQuiz();
   };
 
   const submitQuiz = () => {
     setSubmitted(true);
     void saveResult(
       "fluids",
-      fluidQuestions.map((_, index) => answers[index] ?? -1),
-      fluidQuestions.map((question) => ({
+      quizAttempt.map((_, index) => answers[index] ?? -1),
+      quizAttempt.map((question) => ({
         question: question.question,
-        choices: question.options,
+        choices: question.originalOptions,
         explanation: question.explanation,
+        questionIndex: question.questionIndex,
+        optionOrder: question.optionOrder,
       }))
     );
   };
@@ -518,16 +574,11 @@ export default function FluidsPage() {
   const pipeInH = 20 + areaIn * 5;
   const pipeOutH = 20 + areaOut * 5;
   const midY = 90;
-  const jetY = 45 + tankHeight * 25;
-  const jetEndX = 130 + torricelliSpeed * 12;
-
   return (
-    <main className="flex h-dvh flex-col overflow-hidden bg-[#080D1B] text-[#F8FAFC]">
-      <LessonNavigation />
+    <main className="flex h-full min-h-0 flex-col overflow-hidden bg-[#080D1B] text-[#F8FAFC]">
 
-      <div className="grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] md:grid-rows-1 md:grid-cols-[250px_minmax(0,1fr)]">
-        <LessonSidebar sections={lessonSections} />
-        <div id="lesson-main-scroll" className="min-w-0 overflow-y-auto overscroll-contain px-4 py-6 sm:px-6 lg:px-10">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <div id="lesson-main-scroll" className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain px-4 py-6 sm:px-6 lg:px-10">
         <div className="mx-auto w-full max-w-[1600px]">
         <LessonProgressTracker lessonSlug="fluids" />
         <LessonHeader
@@ -542,22 +593,10 @@ export default function FluidsPage() {
           description={
             <>
             Explore pressure, specific gravity, and density, why objects float or sink, how flow
-            rate and continuity work, and how Bernoulli’s principle leads to Torricelli’s theorem.
+            rate and continuity work, and how Bernoulli’s principle relates pressure to flow speed.
             </>
           }
-        >
-          <div className="flex flex-wrap gap-2">
-            {topicLinks.map((topic) => (
-              <a
-                key={topic.href}
-                href={topic.href}
-                className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-300 transition hover:border-sky-400/50 hover:text-sky-300"
-              >
-                {topic.label}
-              </a>
-            ))}
-          </div>
-        </LessonHeader>
+        />
 
         <section className="mb-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {formulaCards.map((item) => (
@@ -672,6 +711,16 @@ export default function FluidsPage() {
 
           <div className="grid gap-8 lg:grid-cols-2">
             <div className="space-y-7">
+              <button
+                type="button"
+                onClick={() => {
+                  setObjectDensity(600);
+                  setFluidDensity(1000);
+                }}
+                className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-sm text-slate-300 transition hover:bg-white/5"
+              >
+                <RotateCcw size={14} /> Reset
+              </button>
               <div>
                 <div className="mb-3 flex justify-between gap-4 text-sm">
                   <label htmlFor="objectDensity" className="text-slate-300">Object density</label>
@@ -830,6 +879,17 @@ export default function FluidsPage() {
                   />
                 </div>
               ))}
+              <button
+                type="button"
+                onClick={() => {
+                  setAreaIn(8);
+                  setAreaOut(4);
+                  setSpeedIn(2);
+                }}
+                className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-sm text-slate-300 transition hover:bg-white/5"
+              >
+                <RotateCcw size={14} /> Reset
+              </button>
               <div className="grid grid-cols-2 gap-3 pt-2">
                 <div className="rounded-xl bg-white/5 p-4">
                   <p className="text-xs text-slate-400">Speed v₂</p>
@@ -945,17 +1005,25 @@ export default function FluidsPage() {
             <div className="rounded-2xl border border-white/10 bg-[#080D1B] p-5">
               <div className="mb-3 flex items-center justify-between gap-3">
                 <label htmlFor="flowSpeed" className="text-sm text-slate-300">Flow speed (wide section)</label>
-                <strong className="text-violet-300">{flowSpeed}%</strong>
+                <strong className="text-violet-300">{flowSpeed.toFixed(1)} m/s</strong>
               </div>
               <input
                 id="flowSpeed"
                 type="range"
-                min="10"
-                max="100"
+                min="0.5"
+                max="5"
+                step="0.1"
                 value={flowSpeed}
                 onChange={(e) => setFlowSpeed(Number(e.target.value))}
                 className="w-full accent-violet-400"
               />
+              <button
+                type="button"
+                onClick={() => setFlowSpeed(2.5)}
+                className="mt-3 inline-flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-sm text-slate-300 transition hover:bg-white/5"
+              >
+                <RotateCcw size={14} /> Reset
+              </button>
               <div className="mt-5 grid grid-cols-2 gap-3">
                 <div className="rounded-xl bg-white/5 p-4">
                   <p className="text-xs text-slate-400">Wide: speed</p>
@@ -968,7 +1036,7 @@ export default function FluidsPage() {
                 <div className="rounded-xl bg-white/5 p-4">
                   <p className="text-xs text-slate-400">Wide: pressure</p>
                   <p className="mt-1 text-xl font-bold text-sky-300">{(P_UPSTREAM / 1000).toFixed(1)} kPa</p>
-                  <p className="text-xs text-slate-500">100% relative</p>
+                  <p className="text-xs text-slate-500">Fixed upstream pressure</p>
                 </div>
                 <div className="rounded-xl bg-white/5 p-4">
                   <p className="text-xs text-slate-400">Narrow: pressure</p>
@@ -1038,76 +1106,6 @@ export default function FluidsPage() {
           <WorkedExample example={examples.bernoulli} />
         </section>
 
-        {/* 5. Torricelli */}
-        <section
-          id="torricelli"
-          className="mb-12 scroll-mt-24 rounded-3xl border border-violet-400/20 bg-[#111A2E] p-6 md:p-8"
-        >
-          <div className="mb-6">
-            <p className="text-sm font-semibold text-violet-300">5. FLUID EXITING A TANK</p>
-            <h2 className="mt-1 text-2xl font-bold md:text-3xl">Torricelli’s Theorem</h2>
-            <p className="mt-3 max-w-3xl leading-7 text-slate-300">
-              Applying Bernoulli’s equation between the open surface and a small hole at depth{" "}
-              <strong>h</strong> gives the exit speed <strong>v = √(2gh)</strong>. It is the same speed an
-              object would reach falling freely through height h.
-            </p>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-400">
-              The derivation treats both the surface and the hole as open to the atmosphere, so the two
-              pressures cancel, and the surface drops so slowly that its speed is almost zero. Notice
-              that the exit speed does not depend on the density of the fluid or the width of the tank,
-              only on the depth h of the hole below the surface. In real tanks, friction and the
-              contraction of the jet make the actual flow a bit smaller than the ideal value, and as the
-              tank drains, h decreases so the jet slows down.
-            </p>
-          </div>
-
-          <div className="grid gap-6 lg:grid-cols-2 lg:items-center">
-            <div className="rounded-2xl border border-white/10 bg-[#080D1B] p-5">
-              <div className="mb-2 flex justify-between text-sm">
-                <label htmlFor="tankHeight" className="text-slate-300">Depth of hole (h)</label>
-                <strong className="text-violet-300">{tankHeight.toFixed(1)} m</strong>
-              </div>
-              <input
-                id="tankHeight"
-                type="range"
-                min="0.5"
-                max="5"
-                step="0.5"
-                value={tankHeight}
-                onChange={(e) => setTankHeight(Number(e.target.value))}
-                className="w-full accent-violet-400"
-              />
-              <p className="mt-5 text-sm text-slate-400">Exit speed</p>
-              <p className="text-3xl font-bold text-violet-300">{torricelliSpeed.toFixed(2)} m/s</p>
-              <p className="mt-2 text-xs text-slate-500">
-                Assumes an ideal fluid, a small hole, and g = 9.81 m/s².
-              </p>
-            </div>
-
-            <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#080D1B] p-4">
-              <svg viewBox="0 0 300 200" role="img" aria-label="Water streaming from a hole in a tank">
-                <rect x="20" y="20" width="110" height="160" fill="none" stroke="#64748B" strokeWidth="2" />
-                <rect x="22" y="40" width="106" height="138" fill="#38BDF8" fillOpacity=".25" />
-                <line x1="22" y1="40" x2="128" y2="40" stroke="#7DD3FC" strokeWidth="2" />
-                <line x1="150" y1="40" x2="150" y2={jetY} stroke="#C4B5FD" strokeWidth="1" strokeDasharray="3 3" />
-                <text x="156" y={(40 + jetY) / 2 + 4} fill="#C4B5FD" fontSize="11">h</text>
-                <circle cx="130" cy={jetY} r="3" fill="#C4B5FD" />
-                <path
-                  d={`M130 ${jetY} Q ${130 + (jetEndX - 130) * 0.6} ${jetY} ${jetEndX} 180`}
-                  stroke="#7DD3FC"
-                  strokeWidth="3"
-                  fill="none"
-                />
-                <line x1="10" y1="180" x2="290" y2="180" stroke="#64748B" strokeWidth="2" />
-              </svg>
-              <p className="mt-2 text-center text-xs text-slate-500">
-                A deeper hole gives a faster, longer jet.
-              </p>
-            </div>
-          </div>
-          <WorkedExample example={examples.torricelli} />
-        </section>
-
         {/* Quiz */}
         <section
           id="quiz"
@@ -1117,7 +1115,7 @@ export default function FluidsPage() {
             <div>
               <p className="text-sm font-semibold text-emerald-300">CHECK YOUR KNOWLEDGE</p>
               <h2 className="mt-2 text-2xl font-bold md:text-3xl">
-                Fluids · {fluidQuestions.length} questions
+                Fluids · {quizAttempt.length} questions
               </h2>
               <p className="mt-2 text-sm leading-6 text-slate-400">
                 Answer every question. Your score and explanations appear after submission.
@@ -1126,17 +1124,17 @@ export default function FluidsPage() {
             <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-5 py-3">
                 <p className="text-sm text-slate-300">Your score</p>
                 <p className="text-2xl font-black text-emerald-300">
-                  {submitted ? `${score} / ${fluidQuestions.length}` : `${answeredCount} / ${fluidQuestions.length}`}
+                  {submitted ? `${score} / ${quizAttempt.length}` : `${answeredCount} / ${quizAttempt.length}`}
                 </p>
             </div>
           </div>
 
-          <div className="mb-6 h-2 overflow-hidden rounded-full bg-white/10" role="progressbar" aria-label="Quiz questions answered" aria-valuemin={0} aria-valuemax={fluidQuestions.length} aria-valuenow={answeredCount}>
-            <div className="h-full rounded-full bg-sky-400 transition-all" style={{ width: `${(answeredCount / fluidQuestions.length) * 100}%` }} />
+          <div className="mb-6 h-2 overflow-hidden rounded-full bg-white/10" role="progressbar" aria-label="Quiz questions answered" aria-valuemin={0} aria-valuemax={quizAttempt.length} aria-valuenow={answeredCount}>
+            <div className="h-full rounded-full bg-sky-400 transition-all" style={{ width: `${(answeredCount / quizAttempt.length) * 100}%` }} />
           </div>
 
           <div className="space-y-6">
-            {fluidQuestions.map((question, index) => (
+            {quizAttempt.map((question, index) => (
               <LessonQuizQuestion key={index} number={index + 1}>
                 <p className="font-semibold leading-6">
                   {question.question}
@@ -1187,7 +1185,7 @@ export default function FluidsPage() {
             {!submitted ? (
               <button
                 type="button"
-                disabled={Object.keys(answers).length !== fluidQuestions.length}
+                disabled={Object.keys(answers).length !== quizAttempt.length}
                 onClick={submitQuiz}
                 className={QUIZ_SUBMIT_BUTTON_CLASS}
               >
@@ -1210,11 +1208,13 @@ export default function FluidsPage() {
             onRetry={() =>
               void saveResult(
                 "fluids",
-                fluidQuestions.map((_, index) => answers[index] ?? -1),
-                fluidQuestions.map((question) => ({
+                quizAttempt.map((_, index) => answers[index] ?? -1),
+                quizAttempt.map((question) => ({
                   question: question.question,
-                  choices: question.options,
+                  choices: question.originalOptions,
                   explanation: question.explanation,
+                  questionIndex: question.questionIndex,
+                  optionOrder: question.optionOrder,
                 }))
               )
             }
@@ -1222,7 +1222,6 @@ export default function FluidsPage() {
         </section>
 
         <footer className="flex flex-wrap items-center justify-between gap-4 border-t border-white/10 pt-6 text-sm text-slate-500">
-          <p>Calph++ · Learn physics by exploring.</p>
           <Link href="/lessons/measurements-vectors" className="inline-flex items-center gap-2 text-sky-300 hover:text-sky-200">
             Previous lesson <ArrowLeft size={16} />
           </Link>
