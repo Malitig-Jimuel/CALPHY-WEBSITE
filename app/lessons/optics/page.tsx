@@ -1776,13 +1776,15 @@ export default function OpticsPage() {
   };
 
   return (
-    <main className="h-screen min-h-0 overflow-hidden bg-[#080D1B] text-[#F8FAFC]">
-      <div className="flex h-full min-h-0 min-w-0 flex-col">
-        <div
-          id="lesson-main-scroll"
-          className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain px-4 py-6 sm:px-6 lg:px-10"
-        >
-          <div className="mx-auto w-full max-w-[1600px]">
+  
+  <main className="flex-1 min-h-0 overflow-hidden bg-[#080D1B] text-[#F8FAFC]">
+    <div className="flex h-full min-h-0 min-w-0 flex-col">
+      <div
+        id="lesson-main-scroll"
+        className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain px-4 py-6 sm:px-6 lg:px-10"
+      >
+        <div className="mx-auto w-full max-w-[1600px]">
+
         <LessonProgressTracker lessonSlug="optics" />
         <LessonHeader
           module="Physics module 05"

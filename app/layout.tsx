@@ -1,3 +1,4 @@
+
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Geist, Geist_Mono } from "next/font/google";
@@ -30,16 +31,16 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <Suspense
-          fallback={
-            <div
-              aria-hidden="true"
-              className="h-0 shrink-0"
-            />
-          }
-        >
-          <SiteNavbar />
-        </Suspense>
+        <div className="shrink-0">
+          <Suspense
+            fallback={
+              <div aria-hidden="true" className="h-0 shrink-0" />
+            }
+          >
+            <SiteNavbar />
+          </Suspense>
+        </div>
+
         {children}
       </body>
     </html>

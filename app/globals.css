@@ -1,3 +1,4 @@
+
 @import "tailwindcss";
 
 :root {
@@ -24,6 +25,31 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* ================================================== */
+/* LESSON PAGE SCROLLING                               */
+/* ================================================== */
+
+/* Only constrain the document when a lesson scroll
+   container is present. Other pages remain unaffected. */
+
+body:has(#lesson-main-scroll) {
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* The lesson page occupies the space below the navbar. */
+
+body:has(#lesson-main-scroll) > main {
+  flex: 1 1 0%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* ================================================== */
+/* SCROLLBAR DESIGN                                    */
+/* ================================================== */
 
 :root,
 html,

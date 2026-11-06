@@ -20,6 +20,11 @@ export default function RegisterPage() {
     setError("");
     setSuccess("");
 
+    if (!name.trim()) {
+      setError("Please enter your name.");
+      return;
+    }
+
     if (password !== confirmPassword) {
       setError("Your passwords do not match.");
       return;
@@ -37,7 +42,7 @@ export default function RegisterPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: name.trim() || undefined,
+          name: name.trim(),
           email: email.trim(),
           password,
         }),
@@ -100,17 +105,20 @@ export default function RegisterPage() {
           <form onSubmit={handleSubmit} className="mt-8 space-y-5">
             <div>
               <label htmlFor="name" className="mb-2 block text-sm font-medium text-slate-300">
-                Name <span className="text-slate-500">(optional)</span>
+                Name
               </label>
               <input
                 id="name"
                 name="name"
+                type="text"
                 autoComplete="name"
+                required
+                minLength={2}
+                maxLength={50}
                 value={name}
                 onChange={(event) => setName(event.target.value)}
-                maxLength={50}
                 className="w-full rounded-xl border border-white/10 bg-[#0B1222] px-4 py-3 text-sm outline-none transition placeholder:text-slate-600 focus:border-sky-400"
-                placeholder="Your name"
+                placeholder="Enter your Name"
               />
             </div>
 
