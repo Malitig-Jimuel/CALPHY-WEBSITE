@@ -223,11 +223,16 @@ const quiz = [
       "Precision describes how close repeated readings are to one another; accuracy describes closeness to the accepted value.",
   },
   {
-    question: "Round 12.746 to three significant figures.",
-    choices: ["12.7", "12.74", "12.8", "13.0"],
+    question: "Which row correctly lists the SI units of force, energy, power, and pressure, in that order?",
+    choices: [
+      "N, J, W, Pa",
+      "J, N, Pa, W",
+      "kg, m, s, K",
+      "Pa, W, J, N",
+    ],
     answer: 0,
     explanation:
-      "Keep 1, 2, and 7. The next digit is 4, so the 7 stays unchanged: 12.7.",
+      "Force is measured in newtons (N), energy in joules (J), power in watts (W), and pressure in pascals (Pa).",
   },
   {
     question: "Which is a likely systematic error?",
@@ -256,18 +261,28 @@ const quiz = [
       "250 cm × (1 m / 100 cm) = 2.50 m. The centimeter units cancel.",
   },
   {
-    question: "Which quantity is a scalar?",
-    choices: ["Displacement", "Acceleration", "Speed", "Force"],
+    question: "Which metric-prefix pairing is correct?",
+    choices: [
+      "nano (n) = 10⁻⁶ and micro (µ) = 10⁻⁹",
+      "nano (n) = 10⁻⁹ and micro (µ) = 10⁻⁹",
+      "nano (n) = 10⁻⁹ and micro (µ) = 10⁻⁶",
+      "nano (n) = 10⁹ and micro (µ) = 10⁶",
+    ],
     answer: 2,
     explanation:
-      "Speed has magnitude only. Displacement, acceleration, and force require both magnitude and direction.",
+      "The nano prefix means 10⁻⁹, while micro means 10⁻⁶.",
   },
   {
-    question: "Which quantity must include direction to be fully described?",
-    choices: ["Mass", "Temperature", "Energy", "Velocity"],
+    question: "Why is weight a vector quantity?",
+    choices: [
+      "Weight is the amount of matter in an object.",
+      "Weight is measured only in kilograms.",
+      "Weight has magnitude but no direction.",
+      "Weight is a force, so it has magnitude and direction.",
+    ],
     answer: 3,
     explanation:
-      "Velocity is a vector. A statement such as 12 m/s east includes both its magnitude and direction.",
+      "Weight is the gravitational force on an object. As a force, it has magnitude and direction (toward the attracting body).",
   },
   {
     question: "A 10 N force points 30° above the positive x-axis. What are its components?",
@@ -289,50 +304,119 @@ const quiz = [
       "A = √(Ax² + Ay²) = √(6² + 8²) = √100 = 10 m.",
   },
   {
-    question: "A vector points directly along the negative y-axis. What is its direction measured counterclockwise from +x?",
-    choices: ["90°", "180°", "270°", "360°"],
+    question: "For A = 2î + 6ĵ − 5k̂, which expression is the unit vector Â?",
+    choices: [
+      "(2î + 6ĵ − 5k̂) / 8.06 m",
+      "(î + ĵ − k̂) / 3",
+      "(2î + 6ĵ − 5k̂) / √65",
+      "2î + 6ĵ − 5k̂",
+    ],
     answer: 2,
     explanation:
-      "Starting from +x, a counterclockwise rotation of 270° points along −y.",
+      "The magnitude is √(2² + 6² + (−5)²) = √65 ≈ 8.06. Divide the vector by its magnitude to get Â = A/|A|.",
   },
   {
-    question: "A student walks 3 m east and then 4 m north. What is the magnitude of the displacement?",
-    choices: ["1 m", "5 m", "7 m", "12 m"],
+    question: "Which statement correctly describes the head-to-tail and parallelogram methods?",
+    choices: [
+      "Both methods require the vectors to be perpendicular.",
+      "Head-to-tail places the next tail at the previous head; parallelogram starts both vectors at one tail and uses the diagonal.",
+      "Head-to-tail joins the arrowheads; parallelogram subtracts the shorter vector.",
+      "The parallelogram diagonal always points along the larger vector.",
+    ],
     answer: 1,
     explanation:
-      "The perpendicular components give R = √(3² + 4²) = 5 m. Distance traveled is 7 m, but displacement magnitude is 5 m.",
+      "For head-to-tail addition, translate each vector without changing its magnitude or direction so its tail meets the preceding head. For the parallelogram method, draw both vectors tail-to-tail and use the diagonal from their shared tail.",
   },
   {
-    question: "A 5 m east vector is subtracted by a 2 m east vector. What is the result?",
+    question: "A 2 m east vector is subtracted from a 5 m east vector. What is the result?",
     choices: ["7 m east", "3 m east", "3 m west", "10 m east"],
     answer: 1,
     explanation:
       "A − B = 5 east + (−2 east) = 3 m east. Subtraction adds the reversed vector.",
   },
   {
-    question: "Two forces, 6 N east and 8 N north, act at right angles. What is the resultant magnitude?",
-    choices: ["2 N", "10 N", "14 N", "48 N"],
+    question: "Two forces of 4 N and 6 N have an angle of 60° between them. What is the resultant magnitude?",
+    choices: ["2.00 N", "8.72 N", "10.00 N", "6.08 N"],
     answer: 1,
     explanation:
-      "The components are perpendicular, so R = √(6² + 8²) = √100 = 10 N.",
+      "For an angle θ between vectors, R² = A² + B² + 2AB cos θ. Thus R = √(4² + 6² + 2·4·6·cos 60°) = √76 ≈ 8.72 N.",
   },
   {
-    question: "A 12 N vector points west. What are its x- and y-components if east is +x?",
-    choices: ["(12 N, 0 N)", "(0 N, 12 N)", "(−12 N, 0 N)", "(0 N, −12 N)"],
+    question: "Can 6 m and 5 m/s be added as physical quantities?",
+    choices: [
+      "Yes; the sum is 11 m/s.",
+      "Yes; the sum is 11 m.",
+      "No; length and velocity have different dimensions and units.",
+      "No; only vectors can be added.",
+    ],
     answer: 2,
     explanation:
-      "West is the negative x-direction, so Ax = −12 N and Ay = 0 N.",
+      "Physical quantities can be added only when they have compatible dimensions. Length [L] and velocity [LT⁻¹] are different kinds of quantities.",
   },
 ];
 const quizOptionCounts = quiz.map((question) => question.choices.length);
 
-type UnitKey = "km" | "m" | "cm" | "mm";
-const lengthFactors: Record<UnitKey, number> = {
-  km: 1000,
-  m: 1,
-  cm: 0.01,
-  mm: 0.001,
+type ConversionCategory = "length" | "speed" | "mass";
+type ConversionUnit = {
+  value: string;
+  toBase: number;
 };
+
+const conversionUnits: Record<
+  ConversionCategory,
+  {
+    label: string;
+    units: readonly ConversionUnit[];
+    defaultFrom: string;
+    defaultTo: string;
+  }
+> = {
+  length: {
+    label: "Length",
+    units: [
+      { value: "km", toBase: 1000 },
+      { value: "m", toBase: 1 },
+      { value: "cm", toBase: 0.01 },
+      { value: "mm", toBase: 0.001 },
+    ],
+    defaultFrom: "km",
+    defaultTo: "m",
+  },
+  speed: {
+    label: "Speed",
+    units: [
+      { value: "km/h", toBase: 1 / 3.6 },
+      { value: "m/s", toBase: 1 },
+    ],
+    defaultFrom: "km/h",
+    defaultTo: "m/s",
+  },
+  mass: {
+    label: "Mass",
+    units: [
+      { value: "kg", toBase: 1 },
+      { value: "g", toBase: 0.001 },
+      { value: "mg", toBase: 0.000001 },
+    ],
+    defaultFrom: "kg",
+    defaultTo: "g",
+  },
+};
+
+function isConversionCategory(value: string): value is ConversionCategory {
+  return Object.prototype.hasOwnProperty.call(conversionUnits, value);
+}
+
+const scalarVectorItems = [
+  { quantity: "Distance", kind: "scalar", explanation: "Distance is path length; it has magnitude only." },
+  { quantity: "Speed", kind: "scalar", explanation: "Speed is the rate of distance traveled and has magnitude only." },
+  { quantity: "Velocity", kind: "vector", explanation: "Velocity describes displacement per time and includes direction." },
+  { quantity: "Force", kind: "vector", explanation: "A force has magnitude and a direction of action." },
+  { quantity: "Weight", kind: "vector", explanation: "Weight is the gravitational force, directed toward the attracting body." },
+  { quantity: "Mass", kind: "scalar", explanation: "Mass measures inertia and has magnitude only." },
+  { quantity: "Time", kind: "scalar", explanation: "Elapsed time has magnitude only." },
+  { quantity: "Volume", kind: "scalar", explanation: "Volume measures three-dimensional space and has magnitude only." },
+] as const;
 
 function SectionHeading({
   number,
@@ -361,6 +445,7 @@ function SectionHeading({
 function WorkedExample({
   title,
   problem,
+  steps,
   solution,
   answer,
 }: {
@@ -392,6 +477,14 @@ function WorkedExample({
       </button>
       {open && (
         <div className="mt-4 space-y-3 rounded-xl bg-white/[0.03] p-4 text-sm leading-6">
+          <div>
+            <p className="font-semibold text-sky-300">Key steps</p>
+            <ol className="mt-1 list-inside list-decimal space-y-1 text-slate-400">
+              {steps.map((step, index) => (
+                <li key={`${index}-${step}`}>{step}</li>
+              ))}
+            </ol>
+          </div>
           <div>
             <p className="font-semibold text-sky-300">Given</p>
             <p className="text-slate-400">{solution.given}</p>
@@ -442,12 +535,18 @@ export default function MeasurementsVectorsPage() {
   const [magnitudeB, setMagnitudeB] = useState(6);
   const [angleB, setAngleB] = useState(120);
   const [draggingVector, setDraggingVector] = useState<"A" | "B" | null>(null);
+  const [vectorOperation, setVectorOperation] = useState<"add" | "subtract">("add");
+  const [showHeadToTail, setShowHeadToTail] = useState(false);
+  const [showParallelogram, setShowParallelogram] = useState(false);
+  const [conversionCategory, setConversionCategory] =
+    useState<ConversionCategory>("length");
   const [conversionValue, setConversionValue] = useState("2.5");
-  const [conversionFrom, setConversionFrom] = useState<UnitKey>("km");
-  const [conversionTo, setConversionTo] = useState<UnitKey>("m");
+  const [conversionFrom, setConversionFrom] = useState("km");
+  const [conversionTo, setConversionTo] = useState("m");
   const [conversionResult, setConversionResult] = useState<string | null>(null);
   const [practiceAnswer, setPracticeAnswer] = useState<string | null>(null);
-  const [identificationAnswer, setIdentificationAnswer] = useState<string | null>(null);
+  const [scalarVectorAnswers, setScalarVectorAnswers] =
+    useState<Record<string, "scalar" | "vector">>({});
   const [selectedDimensionIndex, setSelectedDimensionIndex] = useState(0);
   const [selectedEquationIndex, setSelectedEquationIndex] = useState(0);
   const [equationAnswer, setEquationAnswer] = useState<boolean | null>(null);
@@ -479,15 +578,26 @@ export default function MeasurementsVectorsPage() {
   const ay = magnitudeA * Math.sin(toRadians(angleA));
   const bx = magnitudeB * Math.cos(toRadians(angleB));
   const by = magnitudeB * Math.sin(toRadians(angleB));
-  const rx = ax + bx;
-  const ry = ay + by;
+  const operationSign = vectorOperation === "add" ? 1 : -1;
+  const operationBx = operationSign * bx;
+  const operationBy = operationSign * by;
+  const rx = ax + operationBx;
+  const ry = ay + operationBy;
   const resultant = Math.hypot(rx, ry);
   const resultantAngle = (Math.atan2(ry, rx) * 180) / Math.PI;
   const normalizedAngle = (resultantAngle + 360) % 360;
+  const unitVectorYTerm =
+    ry < 0
+      ? `− ${Math.abs(ry).toFixed(2)} ĵ`
+      : `+ ${ry.toFixed(2)} ĵ`;
   const graphCenter = 180;
   const graphScale = 3.5;
   const pointA = { x: graphCenter + ax * graphScale, y: graphCenter - ay * graphScale };
   const pointB = { x: graphCenter + bx * graphScale, y: graphCenter - by * graphScale };
+  const pointOperationB = {
+    x: graphCenter + operationBx * graphScale,
+    y: graphCenter - operationBy * graphScale,
+  };
   const pointR = { x: graphCenter + rx * graphScale, y: graphCenter - ry * graphScale };
   function startVectorDrag(event: ReactPointerEvent<SVGSVGElement>) {
     const vector = (event.target as Element)
@@ -496,6 +606,7 @@ export default function MeasurementsVectorsPage() {
     if (vector !== "A" && vector !== "B") return;
 
     event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
     setDraggingVector(vector);
   }
 
@@ -519,10 +630,10 @@ export default function MeasurementsVectorsPage() {
 
     if (draggingVector === "A") {
       setMagnitudeA(Math.round(nextMagnitude * 10) / 10);
-      setAngleA(Math.round(normalizedNextAngle));
+      setAngleA(Math.round(normalizedNextAngle) % 360);
     } else {
       setMagnitudeB(Math.round(nextMagnitude * 10) / 10);
-      setAngleB(Math.round(normalizedNextAngle));
+      setAngleB(Math.round(normalizedNextAngle) % 360);
     }
   }
 
@@ -536,18 +647,33 @@ export default function MeasurementsVectorsPage() {
   function convertUnits() {
     const value = Number(conversionValue);
     if (!conversionValue.trim() || !Number.isFinite(value) || value < 0) {
-      setConversionResult("Enter a finite, nonnegative length before converting.");
+      setConversionResult("Enter a finite, nonnegative value before converting.");
       return;
     }
 
-    const converted =
-      (value * lengthFactors[conversionFrom]) / lengthFactors[conversionTo];
+    const units = conversionUnits[conversionCategory].units;
+    const sourceUnit = units.find((unit) => unit.value === conversionFrom);
+    const targetUnit = units.find((unit) => unit.value === conversionTo);
+    if (!sourceUnit || !targetUnit) {
+      setConversionResult("Choose valid units for the selected quantity.");
+      return;
+    }
+
+    const converted = (value * sourceUnit.toBase) / targetUnit.toBase;
     if (!Number.isFinite(converted)) {
-      setConversionResult("The converted length is outside the supported numeric range.");
+      setConversionResult("The converted value is outside the supported numeric range.");
       return;
     }
     setConversionResult(
       `${value} ${conversionFrom} = ${Number(converted.toPrecision(8))} ${conversionTo}`
+    );
+  }
+
+  function isConversionError(result: string | null) {
+    return (
+      result?.startsWith("Enter a finite") === true ||
+      result?.startsWith("Choose valid") === true ||
+      result?.startsWith("The converted value") === true
     );
   }
 
@@ -808,10 +934,31 @@ export default function MeasurementsVectorsPage() {
               <div className="mt-5 rounded-2xl border border-cyan-400/15 bg-cyan-400/5 p-5">
                 <h3 className="font-bold text-cyan-300">Try a unit conversion</h3>
                 <p className="mt-1 text-sm leading-6 text-slate-400">
-                  Convert a length by multiplying by the source-to-meter factor
-                  and dividing by the target-to-meter factor.
+                  Convert lengths, speeds, or masses using equivalent base-unit
+                  factors.
                 </p>
                 <div className="mt-4 flex flex-wrap items-end gap-3">
+                  <label className="text-sm text-slate-300">
+                    Quantity
+                    <select
+                      value={conversionCategory}
+                      onChange={(event) => {
+                        const nextCategory = event.target.value;
+                        if (!isConversionCategory(nextCategory)) return;
+                        setConversionCategory(nextCategory);
+                        setConversionFrom(
+                          conversionUnits[nextCategory].defaultFrom
+                        );
+                        setConversionTo(conversionUnits[nextCategory].defaultTo);
+                        setConversionResult(null);
+                      }}
+                      className="mt-2 block rounded-xl border border-white/10 bg-[#080D1B] px-3 py-2 text-white"
+                    >
+                      {Object.entries(conversionUnits).map(([key, category]) => (
+                        <option key={key} value={key}>{category.label}</option>
+                      ))}
+                    </select>
+                  </label>
                   <label className="min-w-32 flex-1 text-sm text-slate-300">
                     Value
                     <input
@@ -819,15 +966,11 @@ export default function MeasurementsVectorsPage() {
                       min="0"
                       step="any"
                       aria-describedby={
-                        conversionResult?.startsWith("Enter a finite") ||
-                        conversionResult?.startsWith("The converted length")
+                        isConversionError(conversionResult)
                           ? "conversion-result"
                           : undefined
                       }
-                      aria-invalid={
-                        conversionResult?.startsWith("Enter a finite") === true ||
-                        conversionResult?.startsWith("The converted length") === true
-                      }
+                      aria-invalid={isConversionError(conversionResult)}
                       value={conversionValue}
                       onChange={(event) => {
                         setConversionValue(event.target.value);
@@ -841,26 +984,30 @@ export default function MeasurementsVectorsPage() {
                     <select
                       value={conversionFrom}
                       onChange={(event) => {
-                        setConversionFrom(event.target.value as UnitKey);
+                        setConversionFrom(event.target.value);
                         setConversionResult(null);
                       }}
                       className="mt-2 block rounded-xl border border-white/10 bg-[#080D1B] px-3 py-2 text-white"
                     >
-                      {Object.keys(lengthFactors).map((unit) => <option key={unit}>{unit}</option>)}
+                      {conversionUnits[conversionCategory].units.map((unit) => (
+                        <option key={unit.value} value={unit.value}>{unit.value}</option>
+                      ))}
                     </select>
                   </label>
                   <span className="pb-2 text-slate-500">to</span>
                   <label className="text-sm text-slate-300">
-                    Unit
+                    To
                     <select
                       value={conversionTo}
                       onChange={(event) => {
-                        setConversionTo(event.target.value as UnitKey);
+                        setConversionTo(event.target.value);
                         setConversionResult(null);
                       }}
                       className="mt-2 block rounded-xl border border-white/10 bg-[#080D1B] px-3 py-2 text-white"
                     >
-                      {Object.keys(lengthFactors).map((unit) => <option key={unit}>{unit}</option>)}
+                      {conversionUnits[conversionCategory].units.map((unit) => (
+                        <option key={unit.value} value={unit.value}>{unit.value}</option>
+                      ))}
                     </select>
                   </label>
                   <button
@@ -873,9 +1020,12 @@ export default function MeasurementsVectorsPage() {
                   <button
                     type="button"
                     onClick={() => {
-                      setConversionValue("2.5");
-                      setConversionFrom("km");
-                      setConversionTo("m");
+                      const defaults = conversionUnits[conversionCategory];
+                      setConversionValue(
+                        conversionCategory === "length" ? "2.5" : "1"
+                      );
+                      setConversionFrom(defaults.defaultFrom);
+                      setConversionTo(defaults.defaultTo);
                       setConversionResult(null);
                     }}
                     className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-4 py-2.5 text-sm font-semibold text-slate-300 transition hover:bg-white/5"
@@ -888,12 +1038,7 @@ export default function MeasurementsVectorsPage() {
                     id="conversion-result"
                     className="mt-4 rounded-xl bg-[#080D1B] p-3 text-sm font-semibold text-cyan-200"
                     aria-live="polite"
-                    role={
-                      conversionResult.startsWith("Enter a finite") ||
-                      conversionResult.startsWith("The converted length")
-                        ? "alert"
-                        : undefined
-                    }
+                    role={isConversionError(conversionResult) ? "alert" : undefined}
                   >
                     {conversionResult}
                   </p>
@@ -1452,38 +1597,65 @@ export default function MeasurementsVectorsPage() {
                   }}
                   answer="Distance = 70 m; displacement = 10 m east."
                 />
-                <div className="rounded-2xl border border-cyan-400/15 bg-cyan-400/5 p-5">
-                  <h3 className="font-bold text-cyan-300">Practice · identify a vector</h3>
-                  <p className="mt-2 text-sm text-slate-300">
-                    Which listed quantity must include direction?
+                <article className="rounded-2xl border border-cyan-400/15 bg-cyan-400/5 p-5">
+                  <h3 className="font-bold text-cyan-300">Practice · scalar or vector?</h3>
+                  <p className="mt-2 text-sm leading-6 text-slate-300">
+                    Classify each quantity. Remember: weight is a force, so it
+                    is a vector; mass is a scalar.
                   </p>
-                  <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                    {["Mass", "Displacement", "Temperature", "Energy"].map((choice) => {
-                      const selected = identificationAnswer === choice;
-                      const state = identificationAnswer
-                        ? choice === "Displacement" ? "correct" : selected ? "incorrect" : "muted"
-                        : "default";
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    {scalarVectorItems.map((item) => {
+                      const selected = scalarVectorAnswers[item.quantity];
                       return (
-                        <button
-                          key={choice}
-                          type="button"
-                          aria-pressed={selected}
-                          onClick={() => setIdentificationAnswer(choice)}
-                          className={`${QUIZ_OPTION_BASE_CLASS} ${getQuizOptionClass(state)}`}
+                        <div
+                          key={item.quantity}
+                          className="rounded-xl bg-[#080D1B] p-3"
                         >
-                          {choice}
-                        </button>
+                          <p className="text-sm font-semibold text-white">
+                            {item.quantity}
+                          </p>
+                          <div className="mt-2 grid grid-cols-2 gap-2">
+                            {(["scalar", "vector"] as const).map((kind) => {
+                              const state = selected
+                                ? kind === item.kind
+                                  ? "correct"
+                                  : selected === kind
+                                    ? "incorrect"
+                                    : "muted"
+                                : "default";
+                              return (
+                                <button
+                                  key={kind}
+                                  type="button"
+                                  aria-pressed={selected === kind}
+                                  onClick={() =>
+                                    setScalarVectorAnswers((previous) => ({
+                                      ...previous,
+                                      [item.quantity]: kind,
+                                    }))
+                                  }
+                                  className={`${QUIZ_OPTION_BASE_CLASS} ${getQuizOptionClass(state)}`}
+                                >
+                                  {kind === "scalar" ? "Scalar" : "Vector"}
+                                </button>
+                              );
+                            })}
+                          </div>
+                          {selected && (
+                            <p
+                              className="mt-2 text-xs leading-5 text-slate-400"
+                              aria-live="polite"
+                            >
+                              {selected === item.kind
+                                ? `Correct. ${item.explanation}`
+                                : `Not quite. ${item.explanation}`}
+                            </p>
+                          )}
+                        </div>
                       );
                     })}
                   </div>
-                  {identificationAnswer && (
-                    <p className="mt-3 text-sm leading-6 text-slate-300" aria-live="polite">
-                      {identificationAnswer === "Displacement"
-                        ? "Correct: displacement describes the change in position and needs a direction."
-                        : "Try again: mass, temperature, and energy are scalars; displacement requires direction."}
-                    </p>
-                  )}
-                </div>
+                </article>
               </div>
             </section>
 
@@ -1573,7 +1745,76 @@ export default function MeasurementsVectorsPage() {
                   }}
                   answer="A = 5 m at 126.9° counterclockwise from +x."
                 />
+                <WorkedExample
+                  title="Worked example · west of north"
+                  problem="A vector points 30° west of north. Express its direction as a standard angle measured counterclockwise from +x."
+                  steps={[
+                    "Start from north, which is +y or 90° counterclockwise from +x.",
+                    "Turn 30° toward west, which is the negative x direction.",
+                    "The standard angle is 90° + 30° = 120°.",
+                  ]}
+                  solution={{
+                    given: "Direction is 30° west of north.",
+                    find: "The standard counterclockwise angle from +x.",
+                    formula: "For a direction west of north in quadrant II, θ = 90° + the angle west of north.",
+                    substitution: "θ = 90° + 30°.",
+                    calculation: "θ = 120° counterclockwise from +x.",
+                  }}
+                  answer="30° west of north = 120° counterclockwise from +x."
+                />
               </div>
+              <section id="unit-vectors" className="mt-6 scroll-mt-6">
+                <div className="mb-4">
+                  <p className="text-xs font-bold uppercase tracking-widest text-sky-400">
+                    VECTOR REPRESENTATION
+                  </p>
+                  <h3 className="mt-2 text-xl font-black tracking-tight sm:text-2xl">
+                    Unit Vectors
+                  </h3>
+                </div>
+                <div className="grid gap-4 lg:grid-cols-2">
+                  <article className="rounded-2xl border border-white/10 bg-[#10182B] p-5 sm:p-6">
+                    <h4 className="font-bold text-sky-300">
+                      î, ĵ, and k̂ as direction markers
+                    </h4>
+                    <p className="mt-3 text-sm leading-6 text-slate-300">
+                      The unit vectors î, ĵ, and k̂ point along the positive x-,
+                      y-, and z-axes, respectively, and each has magnitude one.
+                      A vector can be written as{" "}
+                      <span className="font-mono text-white">
+                        A = Axî + Ayĵ + Azk̂
+                      </span>
+                      . Add vectors by adding the coefficients of matching
+                      unit vectors.
+                    </p>
+                    <p className="mt-3 rounded-xl bg-[#080D1B] p-3 font-mono text-sm leading-6 text-cyan-200">
+                      (2î + 3ĵ) + (−î + 4ĵ) = î + 7ĵ
+                    </p>
+                    <p className="mt-3 text-sm leading-6 text-slate-400">
+                      In three dimensions, |A| = √(Ax² + Ay² + Az²). The
+                      direction unit vector is Â = A / |A|, which has
+                      magnitude one and points in A&apos;s direction.
+                    </p>
+                  </article>
+                  <WorkedExample
+                    title="Worked example · three-dimensional unit vector"
+                    problem="For A = 2î + 6ĵ − 5k̂, find its magnitude and direction unit vector."
+                    steps={[
+                      "|A| = √(2² + 6² + (−5)²) = √65.",
+                      "√65 ≈ 8.06, so the vector magnitude is 8.06.",
+                      "Normalize by dividing every component by the magnitude: Â = A/|A|.",
+                    ]}
+                    solution={{
+                      given: "A = 2î + 6ĵ − 5k̂.",
+                      find: "The magnitude |A| and the direction unit vector Â.",
+                      formula: "|A| = √(Ax² + Ay² + Az²); Â = A / |A|.",
+                      substitution: "|A| = √(2² + 6² + (−5)²) = √65; Â = (2î + 6ĵ − 5k̂) / √65.",
+                      calculation: "|A| ≈ 8.06; dividing A by √65 gives a vector of magnitude 1 in the same direction.",
+                    }}
+                    answer="|A| = √65 ≈ 8.06; Â = (2î + 6ĵ − 5k̂) / √65."
+                  />
+                </div>
+              </section>
             </section>
 
             <section id="operations" className="scroll-mt-6">
@@ -1591,6 +1832,12 @@ export default function MeasurementsVectorsPage() {
                     the first tail to the final head. It is the graphical
                     version of vector addition.
                   </p>
+                  <ol className="mt-3 list-inside list-decimal space-y-1 text-sm leading-6 text-slate-300">
+                    <li>Choose a scale and draw the first vector from a starting point.</li>
+                    <li>Translate the next vector so its tail touches the previous arrowhead; do not rotate or resize it.</li>
+                    <li>For additional vectors, repeat the tail-to-head placement.</li>
+                    <li>Draw the resultant from the first tail to the final arrowhead, then measure its magnitude and direction.</li>
+                  </ol>
                 </article>
                 <article className="rounded-2xl border border-white/10 bg-[#10182B] p-5">
                   <h3 className="font-bold text-violet-300">Parallelogram method</h3>
@@ -1599,6 +1846,12 @@ export default function MeasurementsVectorsPage() {
                     and draw its diagonal from the common tail. This diagonal
                     is their sum.
                   </p>
+                  <ol className="mt-3 list-inside list-decimal space-y-1 text-sm leading-6 text-slate-300">
+                    <li>Draw both vectors to scale from the same starting point.</li>
+                    <li>Through each arrowhead, draw a line parallel to the other vector to complete the parallelogram.</li>
+                    <li>Draw the diagonal from the shared tail to the opposite corner; that diagonal is the resultant.</li>
+                    <li>Use the scale or components to determine the resultant magnitude and direction.</li>
+                  </ol>
                 </article>
                 <article className="rounded-2xl border border-white/10 bg-[#10182B] p-5">
                   <h3 className="font-bold text-emerald-300">Component method</h3>
@@ -1724,6 +1977,9 @@ export default function MeasurementsVectorsPage() {
                       setAngleA(30);
                       setMagnitudeB(6);
                       setAngleB(120);
+                      setVectorOperation("add");
+                      setShowHeadToTail(false);
+                      setShowParallelogram(false);
                     }}
                     className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-sm text-slate-300 transition hover:bg-white/5"
                   >
@@ -1734,6 +1990,56 @@ export default function MeasurementsVectorsPage() {
                   <div className="space-y-4">
                     <VectorControl label="Vector A" magnitude={magnitudeA} angle={angleA} color="sky" onMagnitudeChange={setMagnitudeA} onAngleChange={setAngleA} />
                     <VectorControl label="Vector B" magnitude={magnitudeB} angle={angleB} color="violet" onMagnitudeChange={setMagnitudeB} onAngleChange={setAngleB} />
+                    <fieldset className="rounded-xl border border-white/10 bg-[#080D1B] p-4">
+                      <legend className="px-1 text-sm font-semibold text-slate-300">
+                        Vector operation
+                      </legend>
+                      <div className="grid grid-cols-2 gap-2">
+                        {([
+                          ["add", "A + B"],
+                          ["subtract", "A − B"],
+                        ] as const).map(([operation, label]) => (
+                          <button
+                            key={operation}
+                            type="button"
+                            aria-pressed={vectorOperation === operation}
+                            onClick={() => setVectorOperation(operation)}
+                            className={`rounded-lg border px-3 py-2 text-sm font-semibold transition ${
+                              vectorOperation === operation
+                                ? "border-sky-300/40 bg-sky-300/10 text-sky-200"
+                                : "border-white/10 text-slate-300 hover:bg-white/5"
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    </fieldset>
+                    <fieldset className="rounded-xl border border-white/10 bg-[#080D1B] p-4">
+                      <legend className="px-1 text-sm font-semibold text-slate-300">
+                        Diagram overlays
+                      </legend>
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        <label className="flex items-center gap-2 text-sm text-slate-300">
+                          <input
+                            type="checkbox"
+                            checked={showHeadToTail}
+                            onChange={(event) => setShowHeadToTail(event.target.checked)}
+                            className="accent-sky-400"
+                          />
+                          Head-to-tail
+                        </label>
+                        <label className="flex items-center gap-2 text-sm text-slate-300">
+                          <input
+                            type="checkbox"
+                            checked={showParallelogram}
+                            onChange={(event) => setShowParallelogram(event.target.checked)}
+                            className="accent-violet-400"
+                          />
+                          Parallelogram
+                        </label>
+                      </div>
+                    </fieldset>
                   </div>
                   <div className="rounded-xl border border-white/10 bg-[#080D1B] p-3">
                     <svg
@@ -1744,13 +2050,13 @@ export default function MeasurementsVectorsPage() {
                       onPointerMove={moveVectorFromPointer}
                       onPointerUp={() => setDraggingVector(null)}
                       onPointerCancel={() => setDraggingVector(null)}
-                      onPointerLeave={() => setDraggingVector(null)}
                       className="mx-auto w-full max-w-md"
                     >
                       <defs>
                         <marker id="simA" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#38BDF8" /></marker>
                         <marker id="simB" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#A78BFA" /></marker>
                         <marker id="simR" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#34D399" /></marker>
+                        <marker id="simOverlayB" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#C4B5FD" /></marker>
                       </defs>
                       {Array.from({ length: 13 }, (_, index) => {
                         const position = 30 + index * 25;
@@ -1758,6 +2064,74 @@ export default function MeasurementsVectorsPage() {
                       })}
                       <line x1="25" y1={graphCenter} x2="337" y2={graphCenter} stroke="#64748b" />
                       <line x1={graphCenter} y1="335" x2={graphCenter} y2="23" stroke="#64748b" />
+                      <g fill="none" strokeDasharray="4 4" strokeWidth="1.5" pointerEvents="none">
+                        <line x1={pointA.x} y1={pointA.y} x2={pointA.x} y2={graphCenter} stroke="#38BDF8" strokeOpacity=".7" />
+                        <line x1={pointA.x} y1={pointA.y} x2={graphCenter} y2={pointA.y} stroke="#38BDF8" strokeOpacity=".7" />
+                        <line x1={pointB.x} y1={pointB.y} x2={pointB.x} y2={graphCenter} stroke="#A78BFA" strokeOpacity=".7" />
+                        <line x1={pointB.x} y1={pointB.y} x2={graphCenter} y2={pointB.y} stroke="#A78BFA" strokeOpacity=".7" />
+                      </g>
+                      {vectorOperation === "subtract" && (
+                        <>
+                          <line
+                            x1={graphCenter}
+                            y1={graphCenter}
+                            x2={pointOperationB.x}
+                            y2={pointOperationB.y}
+                            stroke="#C4B5FD"
+                            strokeWidth="2"
+                            strokeDasharray="5 4"
+                            markerEnd="url(#simOverlayB)"
+                            pointerEvents="none"
+                          />
+                          <text
+                            x={pointOperationB.x + 7}
+                            y={pointOperationB.y - 7}
+                            fill="#C4B5FD"
+                            fontSize="12"
+                            fontWeight="bold"
+                            pointerEvents="none"
+                          >
+                            −B
+                          </text>
+                        </>
+                      )}
+                      {showHeadToTail && (
+                        <line
+                          x1={pointA.x}
+                          y1={pointA.y}
+                          x2={pointR.x}
+                          y2={pointR.y}
+                          stroke="#C4B5FD"
+                          strokeWidth="2"
+                          strokeDasharray="6 4"
+                          markerEnd="url(#simOverlayB)"
+                          pointerEvents="none"
+                        />
+                      )}
+                      {showParallelogram && (
+                        <>
+                          <line
+                            x1={pointA.x}
+                            y1={pointA.y}
+                            x2={pointR.x}
+                            y2={pointR.y}
+                            stroke="#C4B5FD"
+                            strokeWidth="2"
+                            strokeDasharray="6 4"
+                            pointerEvents="none"
+                          />
+                          <line
+                            x1={pointOperationB.x}
+                            y1={pointOperationB.y}
+                            x2={pointR.x}
+                            y2={pointR.y}
+                            stroke="#38BDF8"
+                            strokeWidth="2"
+                            strokeDasharray="6 4"
+                            pointerEvents="none"
+                          />
+                        </>
+                      )}
                       <line x1={graphCenter} y1={graphCenter} x2={pointA.x} y2={pointA.y} stroke="#38BDF8" strokeWidth="3" markerEnd="url(#simA)" />
                       <line x1={graphCenter} y1={graphCenter} x2={pointB.x} y2={pointB.y} stroke="#A78BFA" strokeWidth="3" markerEnd="url(#simB)" />
                       <line x1={graphCenter} y1={graphCenter} x2={pointR.x} y2={pointR.y} stroke="#34D399" strokeWidth="3" markerEnd="url(#simR)" />
@@ -1787,10 +2161,22 @@ export default function MeasurementsVectorsPage() {
                       <circle cx={graphCenter} cy={graphCenter} r="3" fill="white" />
                     </svg>
                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                      <ResultCard label="Ax" value={`${ax.toFixed(2)} m`} />
+                      <ResultCard label="Ay" value={`${ay.toFixed(2)} m`} />
+                      <ResultCard label="Bx" value={`${bx.toFixed(2)} m`} />
+                      <ResultCard label="By" value={`${by.toFixed(2)} m`} />
                       <ResultCard label="Rx" value={`${rx.toFixed(2)} m`} />
                       <ResultCard label="Ry" value={`${ry.toFixed(2)} m`} />
                       <ResultCard label="|R|" value={`${resultant.toFixed(2)} m`} />
                       <ResultCard label="Direction" value={resultant < 1e-10 ? "undefined" : `${normalizedAngle.toFixed(1)}°`} />
+                      <div className="col-span-2 rounded-xl border border-white/10 bg-[#10182B] p-3 sm:col-span-4">
+                        <p className="text-xs text-slate-500">
+                          Result · {vectorOperation === "add" ? "A + B" : "A − B"}
+                        </p>
+                        <p className="mt-1 break-words font-mono text-sm font-bold text-emerald-300">
+                          R = ({rx.toFixed(2)} î {unitVectorYTerm}) m
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1873,6 +2259,18 @@ export default function MeasurementsVectorsPage() {
                   answer="Net force = 11 N east."
                 />
               </div>
+              <article className="mt-5 rounded-2xl border border-amber-400/15 bg-amber-400/5 p-5">
+                <h3 className="font-bold text-amber-300">
+                  Quantities must have compatible units before adding
+                </h3>
+                <p className="mt-2 text-sm leading-6 text-slate-300">
+                  The expression <span className="font-mono text-white">6 m + 5 m/s</span>{" "}
+                  is not a valid sum: meters measure length ([L]), while meters
+                  per second measure velocity ([LT⁻¹]). Convert units when they
+                  represent the same dimension, but do not add unlike physical
+                  quantities.
+                </p>
+              </article>
             </section>
 
             <section id="formula-reference" className="scroll-mt-6">
@@ -1889,6 +2287,9 @@ export default function MeasurementsVectorsPage() {
                   ["Average acceleration", "ā = Δv / Δt", "Δv: velocity change; Δt: elapsed time. Vector; SI unit m/s²."],
                   ["Vector components", "Ax = A cos θ; Ay = A sin θ", "A: magnitude; θ: angle counterclockwise from +x. Adjust signs for the vector's quadrant."],
                   ["Vector magnitude", "A = √(Ax² + Ay²)", "Ax, Ay: perpendicular components. Applies in a two-dimensional Cartesian coordinate system."],
+                  ["Unit-vector components", "A = Axî + Ayĵ + Azk̂", "î, ĵ, k̂ are unit vectors along the positive x-, y-, and z-axes. Add vectors by combining like components."],
+                  ["Three-dimensional magnitude", "|A| = √(Ax² + Ay² + Az²)", "Ax, Ay, Az: Cartesian components of a 3D vector."],
+                  ["Direction unit vector", "Â = A / |A|", "Normalize a nonzero vector to get a magnitude-one vector in the same direction."],
                   ["Resultant magnitude", "R = √(Rx² + Ry²)", "Rx, Ry: summed components of all vectors. Applies to a 2D Cartesian resultant."],
                   ["Resultant direction", "θ = atan2(Ry, Rx)", "Returns the correct quadrant from components. A plain tan⁻¹(Ry/Rx) needs a quadrant check."],
                 ].map(([name, formula, details]) => (
@@ -1995,7 +2396,7 @@ export default function MeasurementsVectorsPage() {
               {submitted && (
                 <div className="mt-5 rounded-xl border border-emerald-400/15 bg-emerald-400/5 p-4">
                   <p className="font-bold text-emerald-300">
-                    {score >= 12 ? "Knowledge check passed" : "Keep practicing"}
+                    {passed ? "Knowledge check passed" : "Keep practicing"}
                   </p>
                   <p className="mt-1 text-sm leading-6 text-slate-300">
                     You scored {score} out of {quizAttempt.length}. A score of 12/20 (60%) or higher completes this module.
