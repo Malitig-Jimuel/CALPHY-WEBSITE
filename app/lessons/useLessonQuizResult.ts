@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { LESSON_QUIZ_PASS_PERCENT } from "./lessonQuizPassing";
 
 type SaveState = "idle" | "saving" | "saved" | "guest" | "error";
 export type LessonQuizQuestionSnapshot = {
@@ -20,7 +21,7 @@ export function useLessonQuizResult() {
     lessonSlug: string,
     answers: number[],
     questions: LessonQuizQuestionSnapshot[]
-  ) {
+  ): Promise<boolean> {
     setSaveState("saving");
     setSaveMessage("");
 
@@ -46,6 +47,13 @@ export function useLessonQuizResult() {
 
       setPassed(result.passed);
       setSaveState(result.saved ? "saved" : "guest");
+      if (result.passed) {
+        window.dispatchEvent(
+          new CustomEvent("calph-official-lesson-passed", {
+            detail: { lessonSlug, passed: true },
+          })
+        );
+      }
       if (result.saved) {
         window.dispatchEvent(
           new CustomEvent("calph-learning-progress-updated", {
@@ -62,7 +70,7 @@ export function useLessonQuizResult() {
       setSaveMessage(result.saved
         ? result.passed
           ? "Your result was saved and this module is complete."
-          : "Your result was saved. Score at least 60% to complete this module."
+          : `Your result was saved. Score at least ${LESSON_QUIZ_PASS_PERCENT}% to complete this module.`
         : "Your score is shown for this session only. Register or log in to save quiz results and track progress.");
     } catch (error) {
       setSaveState("error");
@@ -71,7 +79,9 @@ export function useLessonQuizResult() {
           ? error.message
           : "Something went wrong while saving your result."
       );
+      return false;
     }
+    return true;
   }
 
   function resetResult() {

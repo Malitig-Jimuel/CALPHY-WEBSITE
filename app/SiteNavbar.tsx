@@ -83,6 +83,8 @@ export default function SiteNavbar() {
     pathname === "/login" ||
     pathname === "/register" ||
     pathname === "/home" ||
+    pathname === "/ai-practice" ||
+    pathname.startsWith("/ai-practice/") ||
     pathname.startsWith("/dashboard") ||
     pathname.startsWith("/lessons") ||
     pathname === "/profile" ||

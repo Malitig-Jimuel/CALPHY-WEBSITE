@@ -1,9 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 import {
-  ArrowLeft,
   ArrowRight,
   CheckCircle2,
   Eye,
@@ -15,8 +13,13 @@ import {
   XCircle,
 } from "lucide-react";
 import LessonQuizFeedback from "../LessonQuizFeedback";
+import {
+  LessonQuizEligibilityNotice,
+  useLessonQuizEligibility,
+} from "../LessonQuizEligibility";
 import LessonHeader from "../LessonHeader";
 import LessonProgressTracker from "../LessonProgressTracker";
+import LessonNavigation from "../LessonNavigation";
 import LessonQuizQuestion, {
   getQuizOptionClass,
   QUIZ_OPTION_BASE_CLASS,
@@ -321,6 +324,169 @@ const workedExamples: WorkedExampleData[] = [
   },
 ];
 
+const additionalWorkedExamples: WorkedExampleData[] = [
+  {
+    title: "Snell's law: air to water",
+    problem:
+      "A light ray travels from air (n₁ = 1.00) into water (n₂ = 1.33) at 30° to the normal. Find its angle in water.",
+    given: ["n₁ = 1.00", "n₂ = 1.33", "θ₁ = 30°"],
+    find: "The refracted angle θ₂.",
+    formula: ["Snell's law: n₁ sin θ₁ = n₂ sin θ₂"],
+    substitution: ["sin θ₂ = (n₁/n₂) sin θ₁", "sin θ₂ = (1.00/1.33) sin 30°"],
+    calculation: ["sin θ₂ = 0.3759", "θ₂ = sin⁻¹(0.3759) = 22.1°"],
+    answer: "θ₂ ≈ 22.1° from the normal",
+    meaning:
+      "Water has a larger refractive index than air, so the ray slows and bends toward the normal.",
+  },
+  {
+    title: "Refraction: speed of light in glass",
+    problem:
+      "Light travels through a glass with refractive index n = 1.50. Find its speed if c = 3.00 × 10⁸ m/s.",
+    given: ["n = 1.50", "c = 3.00 × 10⁸ m/s"],
+    find: "The speed v of light in glass.",
+    formula: ["Refractive index: n = c/v", "Rearrange: v = c/n"],
+    substitution: ["v = (3.00 × 10⁸ m/s)/(1.50)"],
+    calculation: ["v = 2.00 × 10⁸ m/s"],
+    answer: "v = 2.00 × 10⁸ m/s",
+    meaning:
+      "The refractive index compares the vacuum speed of light with its speed in the material. The frequency does not change at the boundary, but wavelength does.",
+  },
+  {
+    title: "Convex lens image",
+    problem:
+      "A 4 cm object is 30 cm from a convex lens with focal length +10 cm. Find di, magnification, and image height.",
+    given: ["do = +30 cm", "f = +10 cm", "ho = +4 cm"],
+    find: "Image distance di, magnification M, and image height hi.",
+    formula: ["1/f = 1/do + 1/di", "M = −di/do; hi = Mho"],
+    substitution: ["1/di = 1/(10 cm) − 1/(30 cm) = 1/(15 cm)", "di = +15 cm"],
+    calculation: ["M = −15/30 = −0.50", "hi = (−0.50)(4 cm) = −2.0 cm"],
+    answer: "di = +15 cm, M = −0.50, hi = −2.0 cm",
+    meaning:
+      "The image is real, inverted, and half the object's height because di is positive and M is negative with |M| < 1.",
+  },
+  {
+    title: "Concave lens image",
+    problem:
+      "A 4 cm object is 30 cm from a concave lens with focal length −10 cm. Find di, magnification, and image height.",
+    given: ["do = +30 cm", "f = −10 cm", "ho = +4 cm"],
+    find: "Image distance di, magnification M, and image height hi.",
+    formula: ["1/f = 1/do + 1/di", "M = −di/do; hi = Mho"],
+    substitution: ["1/di = 1/(−10 cm) − 1/(30 cm) = −2/(15 cm)", "di = −7.5 cm"],
+    calculation: ["M = −(−7.5)/30 = +0.25", "hi = (+0.25)(4 cm) = +1.0 cm"],
+    answer: "di = −7.5 cm, M = +0.25, hi = +1.0 cm",
+    meaning:
+      "The image is virtual, upright, and reduced. A concave lens diverges the rays, so their backward extensions meet on the object side.",
+  },
+];
+
+const opticsPracticeQuestions = [
+  {
+    topic: "Refraction",
+    question: "Light moves from air into water. Which way does it bend?",
+    options: ["Toward the normal", "Away from the normal", "It always reflects completely"],
+    answer: 0,
+    explanation:
+      "Water has a higher refractive index than air. The light slows as it enters water and bends toward the normal.",
+  },
+  {
+    topic: "Snell's law",
+    question:
+      "For n₁ = 1.00, θ₁ = 30°, and n₂ = 1.50, what is θ₂ approximately?",
+    options: ["19.5°", "30.0°", "48.6°"],
+    answer: 0,
+    explanation:
+      "sin θ₂ = (n₁/n₂)sin θ₁ = (1/1.5)(0.5) = 1/3, so θ₂ = sin⁻¹(1/3) ≈ 19.5°.",
+  },
+  {
+    topic: "Lens image",
+    question:
+      "A convex lens forms an image with positive di using the real-object sign convention. What type of image is it?",
+    options: ["Real", "Virtual", "No image can form"],
+    answer: 0,
+    explanation:
+      "For lenses, a positive image distance means the refracted rays actually meet on the opposite side of the lens: a real image.",
+  },
+  {
+    topic: "Optical instruments",
+    question: "Which instrument uses an objective and eyepiece to view distant objects?",
+    options: ["Telescope", "Magnifying glass", "Human eye"],
+    answer: 0,
+    explanation:
+      "A telescope's objective collects light from a distant object and the eyepiece magnifies the resulting image for viewing.",
+  },
+];
+
+function OpticsPractice() {
+  const [questionIndex, setQuestionIndex] = useState(0);
+  const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
+  const question = opticsPracticeQuestions[questionIndex];
+  const correct = selectedAnswer === question.answer;
+
+  return (
+    <section
+      id="optics-practice"
+      className="mb-10 scroll-mt-28 rounded-3xl border border-emerald-400/20 bg-[#111A2E] p-6 md:p-8"
+    >
+      <p className="text-sm font-semibold text-emerald-300">INTERACTIVE PRACTICE</p>
+      <h2 className="mt-2 text-2xl font-bold md:text-3xl">Check your optics understanding</h2>
+      <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,0.65fr)_minmax(0,1.35fr)]">
+        <label htmlFor="optics-practice-question" className="text-sm font-semibold text-slate-300">
+          Choose a practice topic
+          <select
+            id="optics-practice-question"
+            value={questionIndex}
+            onChange={(event) => {
+              setQuestionIndex(Number(event.target.value));
+              setSelectedAnswer(null);
+            }}
+            className="mt-2 w-full rounded-lg border border-white/10 bg-slate-900 px-3 py-3 text-white"
+          >
+            {opticsPracticeQuestions.map((item, index) => (
+              <option key={item.topic} value={index}>{item.topic}</option>
+            ))}
+          </select>
+        </label>
+        <div>
+          <p className="font-semibold leading-7 text-slate-100">{question.question}</p>
+          <div className="mt-3 grid gap-2 sm:grid-cols-3">
+            {question.options.map((option, index) => (
+              <button
+                key={option}
+                type="button"
+                aria-pressed={selectedAnswer === index}
+                onClick={() => setSelectedAnswer(index)}
+                className={`rounded-xl border p-3 text-left text-sm transition ${FOCUS} ${
+                  selectedAnswer === index
+                    ? index === question.answer
+                      ? "border-emerald-400 bg-emerald-400/10 text-emerald-200"
+                      : "border-rose-400 bg-rose-400/10 text-rose-200"
+                    : "border-white/10 bg-[#080D1B] text-slate-300 hover:border-emerald-300/50"
+                }`}
+              >
+                {option}
+              </button>
+            ))}
+          </div>
+          {selectedAnswer !== null && (
+            <p
+              role="status"
+              aria-live="polite"
+              className={`mt-4 rounded-xl p-4 text-sm leading-6 ${
+                correct
+                  ? "bg-emerald-400/10 text-emerald-200"
+                  : "bg-rose-400/10 text-rose-200"
+              }`}
+            >
+              {correct ? "Correct! " : "Not quite. "}
+              {question.explanation}
+            </p>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 /* ------------------------------------------------------------------ */
 /* Mirror physics helpers                                              */
 /* ------------------------------------------------------------------ */
@@ -458,6 +624,598 @@ interface Geometry {
   constructions: { id: string; from: Pt; to: Pt }[];
   image: { base: Pt; tip: Pt } | null;
   notes: string[];
+}
+
+type RefractionMaterial = "air" | "water" | "glass" | "diamond" | "custom";
+type LensType = "convex" | "concave";
+
+const refractionMaterials: Record<
+  Exclude<RefractionMaterial, "custom">,
+  { label: string; index: number }
+> = {
+  air: { label: "Air", index: 1.0003 },
+  water: { label: "Water", index: 1.333 },
+  glass: { label: "Glass", index: 1.5 },
+  diamond: { label: "Diamond", index: 2.42 },
+};
+
+function RefractionSimulator() {
+  const [firstMaterial, setFirstMaterial] = useState<RefractionMaterial>("air");
+  const [secondMaterial, setSecondMaterial] =
+    useState<RefractionMaterial>("water");
+  const [firstIndexInput, setFirstIndexInput] = useState("1.0003");
+  const [secondIndexInput, setSecondIndexInput] = useState("1.333");
+  const [incidenceInput, setIncidenceInput] = useState("45");
+
+  const firstIndex = Number(firstIndexInput);
+  const secondIndex = Number(secondIndexInput);
+  const incidenceAngle = Number(incidenceInput);
+  const inputValid =
+    firstIndexInput.trim() !== "" &&
+    secondIndexInput.trim() !== "" &&
+    incidenceInput.trim() !== "" &&
+    Number.isFinite(firstIndex) &&
+    Number.isFinite(secondIndex) &&
+    Number.isFinite(incidenceAngle) &&
+    firstIndex >= 1 &&
+    secondIndex >= 1 &&
+    incidenceAngle >= 0 &&
+    incidenceAngle <= 90;
+  const sineRefraction =
+    inputValid
+      ? (firstIndex * Math.sin((incidenceAngle * Math.PI) / 180)) / secondIndex
+      : Number.NaN;
+  const totalInternalReflection = inputValid && sineRefraction > 1;
+  const refractionAngle =
+    inputValid && !totalInternalReflection
+      ? (Math.asin(Math.min(1, Math.max(-1, sineRefraction))) * 180) / Math.PI
+      : null;
+  const reflectionAngle = incidenceAngle;
+  const firstLabel =
+    firstMaterial === "custom"
+      ? "First medium"
+      : refractionMaterials[firstMaterial].label;
+  const secondLabel =
+    secondMaterial === "custom"
+      ? "Second medium"
+      : refractionMaterials[secondMaterial].label;
+  const incidentRadians = (incidenceAngle * Math.PI) / 180;
+  const reflectedRadians = (reflectionAngle * Math.PI) / 180;
+  const refractedRadians =
+    refractionAngle === null ? 0 : (refractionAngle * Math.PI) / 180;
+  const hit = { x: 180, y: 145 };
+  const incidentStart = {
+    x: hit.x - Math.sin(incidentRadians) * 112,
+    y: hit.y - Math.cos(incidentRadians) * 112,
+  };
+  const reflectedEnd = {
+    x: hit.x + Math.sin(reflectedRadians) * 112,
+    y: hit.y - Math.cos(reflectedRadians) * 112,
+  };
+  const refractedEnd = {
+    x: hit.x + Math.sin(refractedRadians) * 120,
+    y: hit.y + Math.cos(refractedRadians) * 120,
+  };
+
+  function selectMaterial(
+    side: "first" | "second",
+    material: RefractionMaterial
+  ) {
+    if (side === "first") {
+      setFirstMaterial(material);
+      if (material !== "custom") {
+        setFirstIndexInput(String(refractionMaterials[material].index));
+      }
+    } else {
+      setSecondMaterial(material);
+      if (material !== "custom") {
+        setSecondIndexInput(String(refractionMaterials[material].index));
+      }
+    }
+  }
+
+  return (
+    <div className="mt-6 rounded-2xl border border-cyan-400/20 bg-[#080D1B] p-5 md:p-6">
+      <h3 className="text-xl font-bold text-cyan-200">
+        Interactive Snell&apos;s law simulation
+      </h3>
+      <p className="mt-2 text-sm leading-6 text-slate-400">
+        Choose two media or select Custom and enter refractive indices. Angles
+        are measured from the normal. The ray and calculated angle update as
+        the values change.
+      </p>
+      <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+        <div className="space-y-4">
+          {[
+            {
+              side: "first" as const,
+              title: "Initial medium",
+              selected: firstMaterial,
+              indexValue: firstIndexInput,
+              setIndex: setFirstIndexInput,
+            },
+            {
+              side: "second" as const,
+              title: "Second medium",
+              selected: secondMaterial,
+              indexValue: secondIndexInput,
+              setIndex: setSecondIndexInput,
+            },
+          ].map((medium) => (
+            <div key={medium.side} className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+              <label
+                htmlFor={`${medium.side}-material`}
+                className="block text-sm font-semibold text-slate-200"
+              >
+                {medium.title}
+              </label>
+              <select
+                id={`${medium.side}-material`}
+                value={medium.selected}
+                onChange={(event) =>
+                  selectMaterial(medium.side, event.target.value as RefractionMaterial)
+                }
+                className="mt-2 w-full rounded-lg border border-white/10 bg-slate-900 px-3 py-2 text-sm text-white"
+              >
+                {Object.entries(refractionMaterials).map(([key, material]) => (
+                  <option key={key} value={key}>{material.label}</option>
+                ))}
+                <option value="custom">Custom refractive index</option>
+              </select>
+              <label
+                htmlFor={`${medium.side}-index`}
+                className="mt-3 block text-sm text-slate-300"
+              >
+                Refractive index n
+              </label>
+              <input
+                id={`${medium.side}-index`}
+                type="number"
+                min="1"
+                step="any"
+                value={medium.indexValue}
+                onChange={(event) => {
+                  medium.setIndex(event.target.value);
+                  if (medium.side === "first") setFirstMaterial("custom");
+                  else setSecondMaterial("custom");
+                }}
+                aria-invalid={!Number.isFinite(Number(medium.indexValue)) || Number(medium.indexValue) < 1}
+                className="mt-2 w-full rounded-lg border border-white/10 bg-slate-900 px-3 py-2 text-sm text-white focus:border-cyan-300 focus:outline-none"
+              />
+            </div>
+          ))}
+          <label htmlFor="incidence-angle" className="block text-sm text-slate-300">
+            Angle of incidence θ₁ (degrees)
+            <input
+              id="incidence-angle"
+              type="number"
+              min="0"
+              max="90"
+              step="any"
+              value={incidenceInput}
+              onChange={(event) => setIncidenceInput(event.target.value)}
+              aria-invalid={!Number.isFinite(incidenceAngle) || incidenceAngle < 0 || incidenceAngle > 90}
+              className="mt-2 w-full rounded-lg border border-white/10 bg-slate-900 px-3 py-2 text-sm text-white focus:border-cyan-300 focus:outline-none"
+            />
+          </label>
+          {!inputValid && (
+            <p role="alert" className="text-sm leading-6 text-rose-300">
+              Enter refractive indices of at least 1 and an incidence angle from 0° to 90°.
+            </p>
+          )}
+        </div>
+
+        <div className="rounded-xl border border-white/10 bg-slate-900/70 p-3 sm:p-4">
+          <svg
+            viewBox="0 0 360 300"
+            role="img"
+            aria-label={
+              !inputValid
+                ? "Refraction diagram awaiting valid input"
+                : totalInternalReflection
+                  ? `Total internal reflection at the interface, incidence angle ${incidenceAngle} degrees`
+                  : `Light ray refracting from ${firstLabel} into ${secondLabel}; incidence ${incidenceAngle} degrees and refraction ${refractionAngle?.toFixed(1)} degrees`
+            }
+            className="h-auto w-full"
+          >
+            <defs>
+              <marker id="snellIncidentArrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+                <path d="M0,0 L8,4 L0,8 Z" fill="#60A5FA" />
+              </marker>
+              <marker id="snellRefractedArrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+                <path d="M0,0 L8,4 L0,8 Z" fill="#34D399" />
+              </marker>
+            </defs>
+            <rect x="0" y="0" width="360" height="145" rx="10" fill="#0F172A" />
+            <rect x="0" y="145" width="360" height="155" fill="#0E3342" opacity=".8" />
+            <line x1="0" y1="145" x2="360" y2="145" stroke="#CBD5E1" strokeWidth="2" />
+            <line x1="180" y1="18" x2="180" y2="282" stroke="#94A3B8" strokeDasharray="6 5" />
+            <text x="190" y="30" fill="#CBD5E1" fontSize="12">Normal</text>
+            <text x="12" y="25" fill="#CBD5E1" fontSize="12">
+              {firstLabel} · n₁ = {inputValid ? firstIndex.toFixed(3) : "—"}
+            </text>
+            <text x="12" y="286" fill="#BAE6FD" fontSize="12">
+              {secondLabel} · n₂ = {inputValid ? secondIndex.toFixed(3) : "—"}
+            </text>
+            {inputValid && (
+              <>
+                <line
+                  x1={incidentStart.x}
+                  y1={incidentStart.y}
+                  x2={hit.x}
+                  y2={hit.y}
+                  stroke="#60A5FA"
+                  strokeWidth="4"
+                  markerEnd="url(#snellIncidentArrow)"
+                />
+                <circle cx={hit.x} cy={hit.y} r="4" fill="#F8FAFC" />
+                <path
+                  d={`M180 110 A35 35 0 0 0 ${180 - Math.sin(incidentRadians) * 35} ${145 - Math.cos(incidentRadians) * 35}`}
+                  fill="none"
+                  stroke="#FBBF24"
+                  strokeWidth="2"
+                />
+                <text x="141" y="113" fill="#FDE68A" fontSize="12">
+                  θ₁ {incidenceAngle.toFixed(1)}°
+                </text>
+                {totalInternalReflection ? (
+                  <>
+                    <line
+                      x1={hit.x}
+                      y1={hit.y}
+                      x2={reflectedEnd.x}
+                      y2={reflectedEnd.y}
+                      stroke="#F472B6"
+                      strokeWidth="4"
+                      markerEnd="url(#snellRefractedArrow)"
+                    />
+                    <text x="197" y="105" fill="#F9A8D4" fontSize="12">
+                      Total internal reflection
+                    </text>
+                  </>
+                ) : (
+                  <>
+                    <line
+                      x1={hit.x}
+                      y1={hit.y}
+                      x2={refractedEnd.x}
+                      y2={refractedEnd.y}
+                      stroke="#34D399"
+                      strokeWidth="4"
+                      markerEnd="url(#snellRefractedArrow)"
+                    />
+                    <text x="193" y="177" fill="#6EE7B7" fontSize="12">
+                      θ₂ {refractionAngle?.toFixed(1)}°
+                    </text>
+                  </>
+                )}
+              </>
+            )}
+          </svg>
+          <div className="mt-3 rounded-xl bg-white/[0.04] p-4 text-sm leading-6 text-slate-300" aria-live="polite">
+            {!inputValid ? (
+              <p>Correct the highlighted values to calculate refraction.</p>
+            ) : totalInternalReflection ? (
+              <>
+                <p className="font-semibold text-rose-300">Total internal reflection</p>
+                <p>
+                  sin θ₂ = n₁ sin θ₁ / n₂ = {firstIndex.toFixed(4)} sin({incidenceAngle.toFixed(2)}°) / {secondIndex.toFixed(4)} = {sineRefraction.toFixed(4)} &gt; 1. No transmitted ray is possible.
+                </p>
+                <p className="mt-1">This occurs when light travels from higher n₁ to lower n₂ above the critical angle.</p>
+              </>
+            ) : refractionAngle !== null ? (
+              <>
+                <p className="font-semibold text-emerald-300">Snell&apos;s law calculation</p>
+                <p>n₁ sin θ₁ = n₂ sin θ₂</p>
+                <p>sin θ₂ = (n₁/n₂) sin θ₁</p>
+                <p>sin θ₂ = ({firstIndex.toFixed(4)}/{secondIndex.toFixed(4)}) sin({incidenceAngle.toFixed(2)}°) = {sineRefraction.toFixed(4)}</p>
+                <p>θ₂ = sin⁻¹({sineRefraction.toFixed(4)}) = {refractionAngle.toFixed(2)}°</p>
+                <p className="mt-2 text-slate-400">
+                  {firstIndex > secondIndex
+                    ? "The ray enters a lower-index medium and bends away from the normal."
+                    : firstIndex < secondIndex
+                      ? "The ray enters a higher-index medium and bends toward the normal."
+                      : "The indices are equal, so the ray does not change direction."}
+                </p>
+              </>
+            ) : null}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LensImageSimulator() {
+  const [lensType, setLensType] = useState<LensType>("convex");
+  const [objectDistanceInput, setObjectDistanceInput] = useState("30");
+  const [focalLengthInput, setFocalLengthInput] = useState("15");
+  const [objectHeightInput, setObjectHeightInput] = useState("4");
+
+  const objectDistance = parseInput(objectDistanceInput, 5, 100);
+  const focalMagnitude = parseInput(focalLengthInput, 5, 50);
+  const objectHeight = parseInput(objectHeightInput, 1, 10);
+  const focalLength =
+    focalMagnitude === null
+      ? null
+      : lensType === "convex"
+        ? focalMagnitude
+        : -focalMagnitude;
+  const valid =
+    objectDistance !== null &&
+    focalLength !== null &&
+    objectHeight !== null;
+  const denominator =
+    valid && focalLength !== null && objectDistance !== null
+      ? 1 / focalLength - 1 / objectDistance
+      : Number.NaN;
+  const imageDistance =
+    valid && Number.isFinite(denominator) && Math.abs(denominator) > 1e-9
+      ? 1 / denominator
+      : null;
+  const magnification =
+    imageDistance !== null && objectDistance !== null
+      ? -imageDistance / objectDistance
+      : null;
+  const imageHeight =
+    magnification !== null && objectHeight !== null
+      ? magnification * objectHeight
+      : null;
+  const realImage = imageDistance !== null && imageDistance > 0;
+  const uprightImage = magnification !== null && magnification > 0;
+  const sizeText =
+    magnification === null
+      ? "—"
+      : Math.abs(Math.abs(magnification) - 1) < 0.001
+        ? "Same size"
+        : Math.abs(magnification) > 1
+          ? "Enlarged"
+          : "Reduced";
+
+  const lensX = 300;
+  const axisY = 170;
+  const maxImageDistance =
+    imageDistance === null ? 0 : Math.min(Math.abs(imageDistance), 160);
+  const horizontalScale = Math.min(
+    2.4,
+    250 / Math.max(objectDistance ?? 30, focalMagnitude ?? 15, maxImageDistance, 1)
+  );
+  const objectX =
+    objectDistance === null ? 0 : lensX - objectDistance * horizontalScale;
+  const imageX =
+    imageDistance === null
+      ? lensX
+      : lensX + Math.sign(imageDistance) * maxImageDistance * horizontalScale;
+  const verticalScale =
+    imageHeight === null || objectHeight === null
+      ? 16
+      : Math.min(18, 88 / Math.max(objectHeight, Math.abs(imageHeight), 1));
+  const objectTipY =
+    objectHeight === null ? axisY - 64 : axisY - objectHeight * verticalScale;
+  const imageTipY =
+    imageHeight === null ? axisY : axisY - imageHeight * verticalScale;
+  const virtualRayEnd = {
+    x: 570,
+    y:
+      imageDistance !== null && magnification !== null
+        ? axisY + (axisY - imageTipY) * ((570 - lensX) / Math.max(1, lensX - imageX))
+        : axisY,
+  };
+
+  return (
+    <section
+      id="lens-simulator"
+      className="mb-10 scroll-mt-28 rounded-3xl border border-violet-400/20 bg-[#111A2E] p-6 md:p-8"
+    >
+      <p className="text-sm font-semibold text-violet-300">INTERACTIVE SIMULATION</p>
+      <h2 className="mt-2 text-2xl font-bold md:text-3xl">Convex and Concave Lenses</h2>
+      <p className="mt-3 max-w-4xl leading-7 text-slate-300">
+        A converging convex lens has positive focal length; a diverging concave
+        lens has negative focal length. For a real object, do is positive. A
+        positive di gives a real image on the opposite side; a negative di
+        gives a virtual image on the object side. Magnification M = hi/ho = −di/do.
+      </p>
+      <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
+        <div className="space-y-5 rounded-2xl border border-white/10 bg-[#080D1B] p-5">
+          <fieldset>
+            <legend className="mb-3 text-sm font-semibold text-slate-200">Lens type</legend>
+            <div className="grid grid-cols-2 gap-2">
+              {(["convex", "concave"] as const).map((type) => (
+                <button
+                  key={type}
+                  type="button"
+                  aria-pressed={lensType === type}
+                  onClick={() => setLensType(type)}
+                  className={`rounded-lg border px-3 py-2 text-sm capitalize transition ${FOCUS} ${
+                    lensType === type
+                      ? "border-violet-400 bg-violet-400/10 text-violet-200"
+                      : "border-white/10 text-slate-300 hover:bg-white/5"
+                  }`}
+                >
+                  {type} lens
+                </button>
+              ))}
+            </div>
+          </fieldset>
+          {[
+            {
+              id: "lens-object-distance",
+              label: "Object distance do (cm)",
+              value: objectDistanceInput,
+              set: setObjectDistanceInput,
+              min: "5",
+              max: "100",
+            },
+            {
+              id: "lens-focal-length",
+              label: "Focal length magnitude |f| (cm)",
+              value: focalLengthInput,
+              set: setFocalLengthInput,
+              min: "5",
+              max: "50",
+            },
+            {
+              id: "lens-object-height",
+              label: "Object height ho (cm)",
+              value: objectHeightInput,
+              set: setObjectHeightInput,
+              min: "1",
+              max: "10",
+            },
+          ].map((input) => (
+            <label key={input.id} htmlFor={input.id} className="block text-sm text-slate-300">
+              {input.label}
+              <input
+                id={input.id}
+                type="number"
+                min={input.min}
+                max={input.max}
+                step="any"
+                value={input.value}
+                onChange={(event) => input.set(event.target.value)}
+                className="mt-2 w-full rounded-lg border border-white/10 bg-slate-900 px-3 py-2 text-sm text-white focus:border-violet-300 focus:outline-none"
+              />
+            </label>
+          ))}
+          {!valid ? (
+            <p role="alert" className="text-sm leading-6 text-rose-300">
+              Enter an object distance from 5–100 cm, focal-length magnitude from 5–50 cm,
+              and object height from 1–10 cm.
+            </p>
+          ) : imageDistance === null ? (
+            <p role="status" className="text-sm leading-6 text-amber-200">
+              The object is at the focal point. Emergent rays are parallel, so the ideal image is at infinity.
+            </p>
+          ) : (
+            <div className="grid grid-cols-2 gap-3" aria-live="polite">
+              {[
+                ["Signed focal length", `${fmtSigned(focalLength ?? 0)} cm`],
+                ["Image distance di", `${fmtSigned(imageDistance)} cm`],
+                ["Image height hi", `${fmtSigned(imageHeight ?? 0)} cm`],
+                ["Magnification M", fmt(magnification ?? 0, 3)],
+                ["Image type", realImage ? "Real" : "Virtual"],
+                ["Orientation · size", `${uprightImage ? "Upright" : "Inverted"} · ${sizeText}`],
+              ].map(([label, value]) => (
+                <div key={label} className="rounded-xl bg-white/[0.04] p-3">
+                  <p className="text-xs leading-5 text-slate-400">{label}</p>
+                  <p className="mt-1 break-words text-sm font-bold text-emerald-300">{value}</p>
+                </div>
+              ))}
+            </div>
+          )}
+          {valid && imageDistance !== null && magnification !== null && imageHeight !== null && (
+            <div className="rounded-xl bg-white/[0.04] p-4 text-sm leading-6 text-slate-300">
+              <p className="font-semibold text-violet-200">Thin-lens calculation</p>
+              <p>f = {fmtSigned(focalLength ?? 0)} cm, do = {objectDistance} cm</p>
+              <p>1/di = 1/f − 1/do = 1/({fmtSigned(focalLength ?? 0)}) − 1/({objectDistance}) = {fmt(denominator, 5)} cm⁻¹</p>
+              <p>di = 1/({fmt(denominator, 5)} cm⁻¹) = {fmtSigned(imageDistance)} cm</p>
+              <p>M = −di/do = −({fmtSigned(imageDistance)}/{objectDistance}) = {fmt(magnification, 3)}</p>
+              <p>hi = Mho = ({fmt(magnification, 3)})({objectHeight} cm) = {fmtSigned(imageHeight)} cm</p>
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-3 sm:p-4">
+          <svg
+            viewBox="0 0 600 340"
+            role="img"
+            aria-label={
+              !valid
+                ? "Lens ray diagram awaiting valid input"
+                : imageDistance === null
+                  ? `${lensType} lens with object at focal point and parallel emergent rays`
+                  : `${lensType} lens ray diagram; ${realImage ? "real" : "virtual"} ${uprightImage ? "upright" : "inverted"} image`
+            }
+            className="h-auto w-full"
+          >
+            <defs>
+              <marker id="lensRayArrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+                <path d="M0,0 L8,4 L0,8 Z" fill="#60A5FA" />
+              </marker>
+              <marker id="lensObjectArrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+                <path d="M0,0 L8,4 L0,8 Z" fill="#38BDF8" />
+              </marker>
+              <marker id="lensImageArrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+                <path d="M0,0 L8,4 L0,8 Z" fill="#FBBF24" />
+              </marker>
+            </defs>
+            <rect width="600" height="340" rx="12" fill="#0F172A" />
+            <line x1="20" y1={axisY} x2="580" y2={axisY} stroke="#64748B" strokeDasharray="6 5" />
+            <text x="25" y={axisY - 10} fill="#CBD5E1" fontSize="12">Principal axis</text>
+            <path
+              d={lensType === "convex" ? `M ${lensX} 60 Q ${lensX - 28} ${axisY} ${lensX} 280 Q ${lensX + 28} ${axisY} ${lensX} 60` : `M ${lensX - 18} 60 Q ${lensX} ${axisY} ${lensX - 18} 280 M ${lensX + 18} 60 Q ${lensX} ${axisY} ${lensX + 18} 280`}
+              fill={lensType === "convex" ? "#38BDF8" : "none"}
+              fillOpacity=".18"
+              stroke="#7DD3FC"
+              strokeWidth="3"
+            />
+            <text x={lensX} y="45" fill="#BAE6FD" textAnchor="middle" fontSize="13">
+              {lensType === "convex" ? "Convex lens" : "Concave lens"}
+            </text>
+            {valid && focalLength !== null && objectDistance !== null && objectHeight !== null && (
+              <>
+                <circle cx={lensX - focalLength * horizontalScale} cy={axisY} r="4" fill="#A78BFA" />
+                <text x={lensX - focalLength * horizontalScale} y={axisY + 20} fill="#C4B5FD" fontSize="12" textAnchor="middle">F</text>
+                <circle cx={lensX + focalLength * horizontalScale} cy={axisY} r="4" fill="#A78BFA" />
+                <text x={lensX + focalLength * horizontalScale} y={axisY + 20} fill="#C4B5FD" fontSize="12" textAnchor="middle">F</text>
+                <line x1={objectX} y1={axisY} x2={objectX} y2={objectTipY} stroke="#38BDF8" strokeWidth="4" markerEnd="url(#lensObjectArrow)" />
+                <text x={objectX} y={objectTipY - 12} fill="#7DD3FC" textAnchor="middle" fontSize="12">Object</text>
+                {imageDistance !== null && imageHeight !== null && magnification !== null && (
+                  <>
+                    <line
+                      x1={imageX}
+                      y1={axisY}
+                      x2={imageX}
+                      y2={imageTipY}
+                      stroke="#FBBF24"
+                      strokeWidth="4"
+                      strokeDasharray={realImage ? undefined : "7 5"}
+                      markerEnd="url(#lensImageArrow)"
+                    />
+                    <text
+                      x={Math.max(30, Math.min(570, imageX))}
+                      y={imageTipY + (uprightImage ? -12 : 20)}
+                      fill="#FDE68A"
+                      textAnchor="middle"
+                      fontSize="12"
+                    >
+                      {realImage ? "Real image" : "Virtual image"}
+                    </text>
+                    <line x1={objectX} y1={objectTipY} x2={lensX} y2={objectTipY} stroke="#60A5FA" strokeWidth="2" markerEnd="url(#lensRayArrow)" />
+                    {realImage ? (
+                      <line x1={lensX} y1={objectTipY} x2={imageX} y2={imageTipY} stroke="#34D399" strokeWidth="2" markerEnd="url(#lensRayArrow)" />
+                    ) : (
+                      <>
+                        <line x1={lensX} y1={objectTipY} x2={virtualRayEnd.x} y2={virtualRayEnd.y} stroke="#34D399" strokeWidth="2" markerEnd="url(#lensRayArrow)" />
+                        <line x1={lensX} y1={objectTipY} x2={imageX} y2={imageTipY} stroke="#94A3B8" strokeDasharray="6 5" />
+                      </>
+                    )}
+                    <line x1={objectX} y1={objectTipY} x2={lensX} y2={axisY} stroke="#A78BFA" strokeWidth="2" />
+                    {realImage ? (
+                      <line x1={lensX} y1={axisY} x2={imageX} y2={imageTipY} stroke="#A78BFA" strokeWidth="2" markerEnd="url(#lensRayArrow)" />
+                    ) : (
+                      <>
+                        <line x1={lensX} y1={axisY} x2={virtualRayEnd.x} y2={virtualRayEnd.y} stroke="#A78BFA" strokeWidth="2" markerEnd="url(#lensRayArrow)" />
+                        <line x1={lensX} y1={axisY} x2={imageX} y2={imageTipY} stroke="#94A3B8" strokeDasharray="6 5" />
+                      </>
+                    )}
+                  </>
+                )}
+              </>
+            )}
+          </svg>
+          <p className="mt-2 text-center text-xs leading-5 text-slate-500">
+            Schematic principal axis, focal points, parallel and central rays. Virtual-image extensions are dashed; image position is capped in the drawing when far away.
+          </p>
+        </div>
+      </div>
+      <div className="mt-5 rounded-xl border border-violet-400/15 bg-violet-400/5 p-4 text-sm leading-6 text-slate-300">
+        <p><strong className="text-violet-200">Thin lens equation:</strong> 1/f = 1/do + 1/di</p>
+        <p>f is signed focal length, do is object distance, di is signed image distance; all distances use the same unit.</p>
+        <p><strong className="text-violet-200">Magnification:</strong> M = hi/ho = −di/do. Positive M is upright; negative M is inverted. |M| greater than 1 is enlarged; less than 1 is reduced.</p>
+      </div>
+    </section>
+  );
 }
 
 const DIAGRAM = {
@@ -1718,6 +2476,8 @@ function WorkedExample({ example }: { example: WorkedExampleData }) {
 /* ------------------------------------------------------------------ */
 
 export default function OpticsPage() {
+  const { eligibility, error: eligibilityError, refresh: refreshEligibility } =
+    useLessonQuizEligibility("optics");
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [submitted, setSubmitted] = useState(false);
   const [quizOrder, reshuffleQuiz] =
@@ -1760,9 +2520,9 @@ export default function OpticsPage() {
     document.getElementById("quiz")?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const submitQuiz = () => {
-    setSubmitted(true);
-    void saveResult(
+  const submitQuiz = async () => {
+    if (!eligibility?.eligible) return;
+    const saved = await saveResult(
       "optics",
       quizQuestions.map((_, index) => answers[index] ?? -1),
       quizQuestions.map((question) => ({
@@ -1773,6 +2533,7 @@ export default function OpticsPage() {
         optionOrder: question.optionOrder,
       }))
     );
+    if (saved) setSubmitted(true);
   };
 
   return (
@@ -1797,11 +2558,35 @@ export default function OpticsPage() {
           }
           description={
             <>
-            Explore electromagnetic waves, the laws of reflection, plane and
-            spherical mirrors, image formation, and mirror calculations.
+            Explore reflection, refraction, mirrors and lenses, image formation,
+            optical instruments, and interactive ray diagrams.
             </>
           }
         />
+
+        <nav
+          aria-label="Optics lesson sections"
+          className="mb-8 flex gap-2 overflow-x-auto rounded-2xl border border-white/10 bg-[#111A2E] p-3"
+        >
+          {[
+            ["light-and-reflection", "Reflection"],
+            ["mirror-vocabulary", "Mirrors"],
+            ["refraction", "Refraction"],
+            ["lens-simulator", "Lenses"],
+            ["optical-instruments", "Instruments"],
+            ["optics-examples", "Examples"],
+            ["optics-practice", "Practice"],
+            ["quiz", "Quiz"],
+          ].map(([target, label]) => (
+            <a
+              key={target}
+              href={`#${target}`}
+              className={`shrink-0 rounded-lg border border-white/10 px-3 py-2 text-sm text-slate-300 transition hover:border-cyan-300/50 hover:text-cyan-200 ${FOCUS}`}
+            >
+              {label}
+            </a>
+          ))}
+        </nav>
 
         <section className="mb-10 grid gap-4 md:grid-cols-3">
           {[
@@ -2088,9 +2873,160 @@ export default function OpticsPage() {
           </section>
 
           <section
+            id="refraction"
+            className="mb-10 scroll-mt-28 rounded-3xl border border-cyan-400/20 bg-[#111A2E] p-6 md:p-8"
+          >
+            <div className="mb-4 flex items-center gap-3 text-cyan-300">
+              <Waves size={23} />
+              <span className="text-sm font-semibold">LIGHT AT A BOUNDARY</span>
+            </div>
+            <h2 className="text-2xl font-bold md:text-3xl">Refraction and Snell&apos;s Law</h2>
+            <div className="mt-5 grid gap-5 lg:grid-cols-2">
+              <article className="rounded-2xl bg-[#080D1B] p-5">
+                <h3 className="font-semibold text-cyan-200">Why light bends</h3>
+                <p className="mt-3 leading-7 text-slate-300">
+                  Refraction is the change in direction of light when it crosses
+                  from one transparent material into another. Light changes
+                  speed in the new material; when it enters at an angle, one
+                  side of the wavefront changes speed first, turning the
+                  direction of travel. At normal incidence, its speed changes
+                  but its direction does not.
+                </p>
+                <p className="mt-3 leading-7 text-slate-300">
+                  Refractive index is <strong className="text-cyan-200">n = c/v</strong>,
+                  where c is the speed of light in vacuum and v is its speed in
+                  the medium. Larger n means light travels more slowly. For
+                  example, n is about 1.00 in air, 1.33 in water, and 1.50 in
+                  common glass. Frequency stays the same across the boundary;
+                  wavelength changes with speed.
+                </p>
+              </article>
+              <article className="rounded-2xl bg-[#080D1B] p-5">
+                <h3 className="font-semibold text-cyan-200">Bending and total internal reflection</h3>
+                <ul className="mt-3 space-y-3 text-sm leading-6 text-slate-300">
+                  <li><strong className="text-slate-100">Into higher n:</strong> the ray bends toward the normal.</li>
+                  <li><strong className="text-slate-100">Into lower n:</strong> the ray bends away from the normal.</li>
+                  <li><strong className="text-slate-100">Snell&apos;s law:</strong> n₁ sin θ₁ = n₂ sin θ₂; each angle is measured from the normal.</li>
+                  <li><strong className="text-slate-100">Total internal reflection:</strong> if light goes from higher to lower n and the incidence angle exceeds θc = sin⁻¹(n₂/n₁), there is no refracted ray.</li>
+                </ul>
+              </article>
+            </div>
+            <RefractionSimulator />
+          </section>
+
+          <LensImageSimulator />
+
+          <section
+            id="optical-instruments"
+            className="mb-10 scroll-mt-28 rounded-3xl border border-white/10 bg-[#111A2E] p-6 md:p-8"
+          >
+            <p className="text-sm font-semibold text-amber-300">OPTICS IN EVERYDAY LIFE</p>
+            <h2 className="mt-2 text-2xl font-bold md:text-3xl">Optical Instruments</h2>
+            <p className="mt-3 max-w-4xl leading-7 text-slate-300">
+              Optical instruments guide or focus light to make images easier to
+              see. The diagrams below are simplified illustrations of their
+              main optical elements.
+            </p>
+            <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              {[
+                {
+                  title: "Human eye",
+                  description:
+                    "The cornea and adjustable crystalline lens focus light onto the retina. The iris changes pupil size, and the retina converts light into nerve signals.",
+                  drawing: (
+                    <svg viewBox="0 0 180 92" role="img" aria-label="Simplified eye showing lens focusing light on the retina" className="h-24 w-full">
+                      <path d="M22 46 Q80 0 145 46 Q80 92 22 46Z" fill="#0E3342" stroke="#7DD3FC" strokeWidth="3" />
+                      <path d="M61 27 Q78 46 61 65 Q46 46 61 27Z" fill="#38BDF8" fillOpacity=".45" stroke="#7DD3FC" strokeWidth="2" />
+                      <line x1="5" y1="39" x2="105" y2="46" stroke="#FBBF24" strokeWidth="2" />
+                      <line x1="5" y1="53" x2="105" y2="46" stroke="#FBBF24" strokeWidth="2" />
+                      <circle cx="142" cy="46" r="5" fill="#F472B6" />
+                    </svg>
+                  ),
+                },
+                {
+                  title: "Magnifying glass",
+                  description:
+                    "A convex lens acts as a simple magnifier. With the object inside its focal length, it produces an enlarged, upright virtual image.",
+                  drawing: (
+                    <svg viewBox="0 0 180 92" role="img" aria-label="Convex magnifying lens with an enlarged virtual image" className="h-24 w-full">
+                      <line x1="20" y1="72" x2="160" y2="72" stroke="#64748B" />
+                      <path d="M90 16 Q68 46 90 76 Q112 46 90 16Z" fill="#38BDF8" fillOpacity=".2" stroke="#7DD3FC" strokeWidth="3" />
+                      <line x1="48" y1="72" x2="48" y2="51" stroke="#34D399" strokeWidth="3" />
+                      <line x1="90" y1="51" x2="150" y2="29" stroke="#FBBF24" strokeWidth="2" />
+                      <line x1="90" y1="51" x2="150" y2="51" stroke="#A78BFA" strokeWidth="2" />
+                      <line x1="150" y1="72" x2="150" y2="30" stroke="#F472B6" strokeWidth="2" strokeDasharray="5 4" />
+                    </svg>
+                  ),
+                },
+                {
+                  title: "Microscope",
+                  description:
+                    "The objective lens forms a magnified intermediate image of a nearby specimen. The eyepiece then magnifies that image for the eye.",
+                  drawing: (
+                    <svg viewBox="0 0 180 92" role="img" aria-label="Simplified microscope with objective and eyepiece lenses" className="h-24 w-full">
+                      <path d="M62 15 L90 15 L111 49 L97 58 L70 27Z" fill="#334155" stroke="#CBD5E1" strokeWidth="2" />
+                      <rect x="57" y="12" width="38" height="8" rx="3" fill="#7DD3FC" />
+                      <rect x="99" y="48" width="18" height="9" rx="3" fill="#38BDF8" />
+                      <path d="M108 58 Q107 75 84 78 L53 78" fill="none" stroke="#CBD5E1" strokeWidth="6" strokeLinecap="round" />
+                      <line x1="40" y1="82" x2="130" y2="82" stroke="#64748B" strokeWidth="4" />
+                      <circle cx="108" cy="68" r="3" fill="#FBBF24" />
+                    </svg>
+                  ),
+                },
+                {
+                  title: "Telescope",
+                  description:
+                    "The objective gathers nearly parallel rays from a distant object and forms an image. The eyepiece magnifies the angle at which that image is viewed.",
+                  drawing: (
+                    <svg viewBox="0 0 180 92" role="img" aria-label="Telescope tube with objective and eyepiece" className="h-24 w-full">
+                      <path d="M42 34 L128 24 L133 59 L47 65Z" fill="#1E293B" stroke="#CBD5E1" strokeWidth="2" />
+                      <line x1="48" y1="29" x2="52" y2="68" stroke="#7DD3FC" strokeWidth="4" />
+                      <line x1="127" y1="23" x2="132" y2="60" stroke="#A78BFA" strokeWidth="4" />
+                      <line x1="8" y1="36" x2="45" y2="42" stroke="#FBBF24" strokeWidth="2" />
+                      <line x1="8" y1="58" x2="45" y2="54" stroke="#FBBF24" strokeWidth="2" />
+                      <line x1="134" y1="39" x2="170" y2="31" stroke="#34D399" strokeWidth="2" />
+                      <line x1="134" y1="49" x2="170" y2="57" stroke="#34D399" strokeWidth="2" />
+                    </svg>
+                  ),
+                },
+              ].map((instrument) => (
+                <article key={instrument.title} className="rounded-2xl border border-white/10 bg-[#080D1B] p-4">
+                  {instrument.drawing}
+                  <h3 className="mt-2 font-semibold text-amber-200">{instrument.title}</h3>
+                  <p className="mt-2 text-sm leading-6 text-slate-400">{instrument.description}</p>
+                </article>
+              ))}
+            </div>
+          </section>
+
+          <section
+            id="optics-examples"
+            className="mb-10 scroll-mt-28 rounded-3xl border border-white/10 bg-[#111A2E] p-6 md:p-8"
+          >
+            <p className="text-sm font-semibold text-cyan-300">WORKED EXAMPLES</p>
+            <h2 className="mt-2 text-2xl font-bold md:text-3xl">Refraction and lens calculations</h2>
+            <p className="mt-3 max-w-4xl leading-7 text-slate-300">
+              Each solution is organized as Given, Find, Formula, Substitution,
+              Calculation, and Final Answer. Open an example to follow the steps.
+            </p>
+            <div className="mt-5">
+              {additionalWorkedExamples.map((example) => (
+                <WorkedExample key={example.title} example={example} />
+              ))}
+            </div>
+          </section>
+
+          <OpticsPractice />
+
+          <section
           id="quiz"
           className="scroll-mt-24 rounded-3xl border border-white/10 bg-[#111A2E] p-6 md:p-8"
         >
+          <LessonQuizEligibilityNotice
+            eligibility={eligibility}
+            error={eligibilityError}
+            onRetry={() => void refreshEligibility()}
+          />
           <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
             <div>
               <p className="text-sm font-semibold text-emerald-300">
@@ -2258,7 +3194,11 @@ export default function OpticsPage() {
             {!submitted ? (
               <button
                 type="button"
-                disabled={answeredCount !== quizQuestions.length}
+                disabled={
+                  answeredCount !== quizQuestions.length ||
+                  !eligibility?.eligible ||
+                  saveState === "saving"
+                }
                 onClick={submitQuiz}
                 className={`${QUIZ_SUBMIT_BUTTON_CLASS} ${FOCUS}`}
               >
@@ -2279,8 +3219,8 @@ export default function OpticsPage() {
             saveState={saveState}
             passed={passed}
             message={saveMessage}
-            onRetry={() =>
-              void saveResult(
+            onRetry={async () => {
+              if (await saveResult(
                 "optics",
                 quizQuestions.map((_, index) => answers[index] ?? -1),
                 quizQuestions.map((question) => ({
@@ -2290,20 +3230,16 @@ export default function OpticsPage() {
                   questionIndex: question.questionIndex,
                   optionOrder: question.optionOrder,
                 }))
-              )
-            }
+              )) setSubmitted(true);
+            }}
           />
         </section>
 
-        <footer className="mt-8 flex flex-wrap justify-between gap-4 border-t border-white/10 pt-6 text-sm">
-          <Link
-            href="/lessons/waves-sound"
-            className={`text-sky-300 hover:text-sky-200 ${FOCUS}`}
-          >
-            <ArrowLeft size={16} className="mr-2 inline" />
-            Previous: Waves & Sound
-          </Link>
-        </footer>
+        <LessonNavigation
+          lessonSlug="optics"
+          previous={{ href: "/lessons/waves-sound", label: "Waves & Sound" }}
+          next={{ href: "/lessons/electricity", label: "Electricity" }}
+        />
         </div>
         </div>
       </div>

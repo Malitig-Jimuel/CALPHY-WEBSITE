@@ -1,24 +1,25 @@
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
   provider  = "postgresql"
-  url      = env("DATABASE_URL")
+  url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
 model User {
-  id             String           @id @default(cuid())
-  name           String?
-  email          String           @unique
-  passwordHash   String
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
+  id           String   @id @default(cuid())
+  name         String?
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  lessonProgress LessonProgress[]
-  quizAttempts   QuizAttempt[]
+  lessonProgress        LessonProgress[]
+  quizAttempts          QuizAttempt[]
+  aiPracticeDailyUsage  AiPracticeDailyUsage[]
+  aiPracticeGenerations AiPracticeGeneration[]
 }
 
 model LessonProgress {
@@ -38,12 +39,12 @@ model LessonProgress {
 }
 
 model QuizAttempt {
-  id             String       @id @default(cuid())
+  id             String   @id @default(cuid())
   userId         String
   quizId         String
-  score          Int          @default(0)
+  score          Int      @default(0)
   totalQuestions Int
-  createdAt      DateTime     @default(now())
+  createdAt      DateTime @default(now())
 
   user    User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   answers QuizAnswer[]
@@ -53,7 +54,7 @@ model QuizAttempt {
 }
 
 model QuizAnswer {
-  id             String      @id @default(cuid())
+  id             String   @id @default(cuid())
   attemptId      String
   questionId     String
   questionText   String
@@ -62,10 +63,47 @@ model QuizAnswer {
   choices        String?
   explanation    String?
   isCorrect      Boolean
-  createdAt      DateTime    @default(now())
+  createdAt      DateTime @default(now())
 
   attempt QuizAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
 
   @@unique([attemptId, questionId])
   @@index([attemptId])
+}
+
+model AiPracticeDailyUsage {
+  userId                  String
+  dayKey                  String
+  aiQuestionsGenerated    Int      @default(0)
+  localQuestionsGenerated Int      @default(0)
+  aiQuestionsReserved     Int      @default(0)
+  updatedAt               DateTime @updatedAt
+
+  user        User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  generations AiPracticeGeneration[]
+
+  @@id([userId, dayKey])
+  @@index([dayKey])
+}
+
+model AiPracticeGeneration {
+  id           String   @id @default(cuid())
+  userId       String
+  dayKey       String
+  requestId    String
+  source       String
+  status       String   @default("PENDING")
+  fingerprint  String
+  problemData  Json?
+  responseData Json?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user       User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dailyUsage AiPracticeDailyUsage @relation(fields: [userId, dayKey], references: [userId, dayKey], onDelete: Cascade)
+
+  @@unique([userId, requestId])
+  @@index([userId, dayKey, createdAt])
+  @@index([userId, dayKey, fingerprint])
+  @@index([status, createdAt])
 }

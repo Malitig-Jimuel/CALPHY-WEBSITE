@@ -2,11 +2,15 @@
 
 import { useState } from "react";
 import type { DragEvent as ReactDragEvent } from "react";
-import Link from "next/link";
 import { ArrowRight, CheckCircle2, RotateCcw, XCircle, Zap } from "lucide-react";
 import LessonQuizFeedback from "../LessonQuizFeedback";
+import {
+  LessonQuizEligibilityNotice,
+  useLessonQuizEligibility,
+} from "../LessonQuizEligibility";
 import LessonHeader from "../LessonHeader";
 import LessonProgressTracker from "../LessonProgressTracker";
+import LessonNavigation from "../LessonNavigation";
 import LessonQuizQuestion, {
   getQuizOptionClass,
   QUIZ_OPTION_BASE_CLASS,
@@ -27,6 +31,7 @@ const quizFocus =
 /* ---------- Helpers ---------- */
 const K = 8.99e9; // Coulomb's constant (N·m²/C²)
 const MICRO = 1e-6; // μC -> C
+const ELEMENTARY_CHARGE = 1.602e-19;
 
 // Turn text from an input box into a number (empty text becomes NaN)
 function parseInput(text: string): number {
@@ -80,14 +85,335 @@ function NumberField({
   );
 }
 
+function ChargeTransferActivity() {
+  const [electronsTransferred, setElectronsTransferred] = useState(0);
+  const chargeA = -6 + electronsTransferred;
+  const chargeB = 2 - electronsTransferred;
+  const totalCharge = chargeA + chargeB;
+
+  return (
+    <div className="mt-5 rounded-2xl border border-violet-300/20 bg-[#080D1B] p-5">
+      <h3 className="font-semibold text-violet-200">Interactive: transfer electrons</h3>
+      <p className="mt-2 text-sm leading-6 text-slate-400">
+        Initially object A has −6e and object B has +2e. Move up to six
+        electrons from A to B. Losing electrons makes A more positive; gaining
+        electrons makes B more negative.
+      </p>
+      <label htmlFor="electron-transfer" className="mt-4 block text-sm text-slate-300">
+        Electrons transferred from A to B: <strong className="text-violet-200">{electronsTransferred}</strong>
+        <input
+          id="electron-transfer"
+          type="range"
+          min="0"
+          max="6"
+          step="1"
+          value={electronsTransferred}
+          onChange={(event) => setElectronsTransferred(Number(event.target.value))}
+          className="mt-3 w-full accent-violet-400"
+        />
+      </label>
+      <div className="mt-4 grid gap-3 sm:grid-cols-3" aria-live="polite">
+        <div className="rounded-xl bg-white/[0.04] p-3">
+          <p className="text-xs text-slate-400">Before · A + B</p>
+          <p className="mt-1 text-sm font-bold text-slate-100">−6e + 2e = −4e</p>
+        </div>
+        <div className="rounded-xl bg-white/[0.04] p-3">
+          <p className="text-xs text-slate-400">After · object A</p>
+          <p className="mt-1 text-sm font-bold text-sky-200">{chargeA > 0 ? "+" : ""}{chargeA}e = {formatValue(chargeA * ELEMENTARY_CHARGE)} C</p>
+        </div>
+        <div className="rounded-xl bg-white/[0.04] p-3">
+          <p className="text-xs text-slate-400">After · object B</p>
+          <p className="mt-1 text-sm font-bold text-amber-200">{chargeB > 0 ? "+" : ""}{chargeB}e = {formatValue(chargeB * ELEMENTARY_CHARGE)} C</p>
+        </div>
+      </div>
+      <p className="mt-3 text-sm font-semibold text-emerald-300" aria-live="polite">
+        Total after transfer: {totalCharge}e = {formatValue(totalCharge * ELEMENTARY_CHARGE)} C (unchanged)
+      </p>
+    </div>
+  );
+}
+
+const materialTypes = [
+  { material: "Copper", type: "conductor", reason: "Copper has mobile electrons and is widely used for electrical wires." },
+  { material: "Aluminum", type: "conductor", reason: "Aluminum conducts charge readily and is used in power lines." },
+  { material: "Silver", type: "conductor", reason: "Silver is an excellent electrical conductor." },
+  { material: "Gold", type: "conductor", reason: "Gold conducts electricity and resists corrosion." },
+  { material: "Rubber", type: "insulator", reason: "Rubber resists charge motion and can insulate wires." },
+  { material: "Plastic", type: "insulator", reason: "Most plastics are poor conductors and are used as insulation." },
+  { material: "Wood", type: "insulator", reason: "Dry wood is generally a poor conductor compared with metals." },
+] as const;
+
+function MaterialClassificationActivity() {
+  const [materialIndex, setMaterialIndex] = useState(0);
+  const [answer, setAnswer] = useState<"conductor" | "insulator" | null>(null);
+  const material = materialTypes[materialIndex];
+  const correct = answer === material.type;
+
+  return (
+    <div className="mt-5 rounded-2xl border border-sky-300/20 bg-[#080D1B] p-5">
+      <h3 className="font-semibold text-sky-200">Try it: classify a material</h3>
+      <label htmlFor="classify-material" className="mt-3 block text-sm text-slate-300">
+        Material
+        <select
+          id="classify-material"
+          value={materialIndex}
+          onChange={(event) => {
+            setMaterialIndex(Number(event.target.value));
+            setAnswer(null);
+          }}
+          className={`${inputClass} mt-2`}
+        >
+          {materialTypes.map((item, index) => (
+            <option key={item.material} value={index}>{item.material}</option>
+          ))}
+        </select>
+      </label>
+      <div className="mt-3 grid grid-cols-2 gap-3">
+        {(["conductor", "insulator"] as const).map((classification) => (
+          <button
+            key={classification}
+            type="button"
+            aria-pressed={answer === classification}
+            onClick={() => setAnswer(classification)}
+            className={`rounded-xl border px-3 py-3 text-sm font-semibold capitalize transition ${
+              answer === classification
+                ? correct
+                  ? "border-emerald-300 bg-emerald-400/10 text-emerald-200"
+                  : "border-rose-300 bg-rose-400/10 text-rose-200"
+                : "border-white/10 bg-white/[0.03] text-slate-300 hover:bg-white/[0.06]"
+            }`}
+          >
+            {classification}
+          </button>
+        ))}
+      </div>
+      {answer && (
+        <p role="status" aria-live="polite" className={`mt-3 text-sm leading-6 ${correct ? "text-emerald-200" : "text-rose-200"}`}>
+          {correct ? "Correct. " : `Not quite—${material.material} is a ${material.type}. `}
+          {material.reason}
+        </p>
+      )}
+    </div>
+  );
+}
+
+const coulombChallenges = [
+  { title: "Picocoulomb charges", q1: 2, q2: -3, unit: "pC", scale: 1e-12, distance: 0.01 },
+  { title: "Nanocoulomb charges", q1: 4, q2: -2, unit: "nC", scale: 1e-9, distance: 0.2 },
+  { title: "Microcoulomb charges", q1: 3, q2: 5, unit: "μC", scale: 1e-6, distance: 0.3 },
+] as const;
+
+function CoulombPractice() {
+  const [challengeIndex, setChallengeIndex] = useState(0);
+  const [answer, setAnswer] = useState("");
+  const [checked, setChecked] = useState(false);
+  const challenge = coulombChallenges[challengeIndex];
+  const q1C = challenge.q1 * challenge.scale;
+  const q2C = challenge.q2 * challenge.scale;
+  const force = (K * Math.abs(q1C * q2C)) / challenge.distance ** 2;
+  const submittedAnswer = parseInput(answer);
+  const correct =
+    Number.isFinite(submittedAnswer) &&
+    Math.abs(submittedAnswer - force) <= Math.max(Math.abs(force) * 0.02, 1e-15);
+
+  function chooseChallenge(value: string) {
+    setChallengeIndex(Number(value));
+    setAnswer("");
+    setChecked(false);
+  }
+
+  return (
+    <div className="mt-6 rounded-2xl border border-sky-300/20 bg-[#080D1B] p-5">
+      <h3 className="font-semibold text-sky-200">Coulomb&apos;s law practice · mixed charge units</h3>
+      <label htmlFor="coulomb-practice" className="mt-3 block text-sm text-slate-300">
+        Challenge
+        <select id="coulomb-practice" value={challengeIndex} onChange={(event) => chooseChallenge(event.target.value)} className={`${inputClass} mt-2`}>
+          {coulombChallenges.map((item, index) => <option key={item.title} value={index}>{item.title}</option>)}
+        </select>
+      </label>
+      <p className="mt-3 text-sm leading-6 text-slate-300">
+        Find the force magnitude for q₁ = {challenge.q1} {challenge.unit}, q₂ = {challenge.q2} {challenge.unit},
+        and r = {challenge.distance} m. Enter your answer in newtons (N).
+      </p>
+      <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+        <label htmlFor="coulomb-practice-answer" className="text-sm text-slate-300">
+          Force magnitude (N)
+          <input id="coulomb-practice-answer" type="number" step="any" value={answer} onChange={(event) => { setAnswer(event.target.value); setChecked(false); }} className={`${inputClass} mt-2`} />
+        </label>
+        <button type="button" onClick={() => setChecked(true)} disabled={!Number.isFinite(submittedAnswer)} className="self-end rounded-xl bg-sky-500 px-5 py-2.5 text-sm font-bold text-slate-950 transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-40">
+          Check answer
+        </button>
+      </div>
+      {checked && (
+        <div role="status" aria-live="polite" className={`mt-4 rounded-xl p-4 text-sm leading-6 ${correct ? "bg-emerald-400/10 text-emerald-200" : "bg-rose-400/10 text-rose-200"}`}>
+          <p className="font-bold">{correct ? "Correct!" : "Not quite. Here is the calculation:"}</p>
+          <p className="mt-1">q₁ = {challenge.q1} × {challenge.scale.toExponential(0)} C = {formatValue(q1C)} C</p>
+          <p>q₂ = {challenge.q2} × {challenge.scale.toExponential(0)} C = {formatValue(q2C)} C</p>
+          <p>F = k|q₁q₂|/r² = (8.99 × 10⁹)|({formatValue(q1C)})({formatValue(q2C)})|/({challenge.distance})²</p>
+          <p>F = {formatValue(force)} N. The interaction is attractive because the charges have opposite signs.</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const circuitChallenges = [
+  {
+    title: "Find current",
+    prompt: "A 12 V battery is connected to a 4 Ω resistor. Find the current in amperes.",
+    value: 3,
+    steps: ["Given: V = 12 V and R = 4 Ω.", "Formula: I = V/R.", "Substitute: I = 12 V / 4 Ω.", "Calculate: I = 3 A."],
+    unit: "A",
+  },
+  {
+    title: "Find voltage",
+    prompt: "A 2.5 A current passes through an 8 Ω resistor. Find the voltage in volts.",
+    value: 20,
+    steps: ["Given: I = 2.5 A and R = 8 Ω.", "Formula: V = IR.", "Substitute: V = (2.5 A)(8 Ω).", "Calculate: V = 20 V."],
+    unit: "V",
+  },
+  {
+    title: "Find resistance",
+    prompt: "A 24 V source drives a 3 A current. Find the resistance in ohms.",
+    value: 8,
+    steps: ["Given: V = 24 V and I = 3 A.", "Formula: R = V/I.", "Substitute: R = 24 V / 3 A.", "Calculate: R = 8 Ω."],
+    unit: "Ω",
+  },
+  {
+    title: "Resistance increases",
+    prompt: "A 12 V source is first connected to 5 Ω, then to 10 Ω. What is the new current in amperes?",
+    value: 1.2,
+    steps: ["Initial current: I₁ = 12 V / 5 Ω = 2.4 A.", "The resistance doubles while voltage is fixed, so current halves.", "New current: I₂ = 12 V / 10 Ω = 1.2 A."],
+    unit: "A",
+  },
+  {
+    title: "Compare two circuits",
+    prompt: "At 12 V, circuit A has 4 Ω and circuit B has 8 Ω. Find the current in circuit A in amperes.",
+    value: 3,
+    steps: ["Circuit A: Iₐ = V/Rₐ = 12 V / 4 Ω = 3 A.", "Circuit B: Iᵦ = 12 V / 8 Ω = 1.5 A.", "The lower-resistance circuit carries more current at the same voltage."],
+    unit: "A",
+  },
+] as const;
+
+function CircuitPractice() {
+  const [challengeIndex, setChallengeIndex] = useState(0);
+  const [answer, setAnswer] = useState("");
+  const [checked, setChecked] = useState(false);
+  const challenge = circuitChallenges[challengeIndex];
+  const parsedAnswer = parseInput(answer);
+  const correct =
+    Number.isFinite(parsedAnswer) &&
+    Math.abs(parsedAnswer - challenge.value) <= Math.max(Math.abs(challenge.value) * 0.01, 0.01);
+
+  function chooseChallenge(value: string) {
+    setChallengeIndex(Number(value));
+    setAnswer("");
+    setChecked(false);
+  }
+
+  return (
+    <section id="circuit-practice" className={`${card} mt-8 scroll-mt-28`}>
+      <p className="text-sm font-semibold text-emerald-300">OHM&apos;S LAW CHALLENGES</p>
+      <h2 className="mt-2 text-2xl font-bold">Practice simple circuits</h2>
+      <label htmlFor="circuit-challenge" className="mt-4 block text-sm text-slate-300">
+        Choose a challenge
+        <select id="circuit-challenge" value={challengeIndex} onChange={(event) => chooseChallenge(event.target.value)} className={`${inputClass} mt-2`}>
+          {circuitChallenges.map((item, index) => <option key={item.title} value={index}>{item.title}</option>)}
+        </select>
+      </label>
+      <p className="mt-4 font-semibold leading-7 text-slate-100">{challenge.prompt}</p>
+      <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+        <label htmlFor="circuit-challenge-answer" className="text-sm text-slate-300">
+          Answer ({challenge.unit})
+          <input id="circuit-challenge-answer" type="number" step="any" value={answer} onChange={(event) => { setAnswer(event.target.value); setChecked(false); }} className={`${inputClass} mt-2`} />
+        </label>
+        <button type="button" onClick={() => setChecked(true)} disabled={!Number.isFinite(parsedAnswer)} className="self-end rounded-xl bg-emerald-400 px-5 py-2.5 text-sm font-bold text-slate-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-40">
+          Check answer
+        </button>
+      </div>
+      {checked && (
+        <div role="status" aria-live="polite" className={`mt-4 rounded-xl p-4 text-sm leading-6 ${correct ? "bg-emerald-400/10 text-emerald-200" : "bg-rose-400/10 text-rose-200"}`}>
+          <p className="font-bold">{correct ? "Correct!" : `Not quite. The answer is ${challenge.value} ${challenge.unit}.`}</p>
+          <ol className="mt-2 list-inside list-decimal space-y-1">
+            {challenge.steps.map((step) => <li key={step}>{step}</li>)}
+          </ol>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function SeriesParallelComparison() {
+  const [voltageInput, setVoltageInput] = useState("12");
+  const [firstResistanceInput, setFirstResistanceInput] = useState("6");
+  const [secondResistanceInput, setSecondResistanceInput] = useState("12");
+  const voltage = parseInput(voltageInput);
+  const firstResistance = parseInput(firstResistanceInput);
+  const secondResistance = parseInput(secondResistanceInput);
+  const valid =
+    Number.isFinite(voltage) &&
+    voltage >= 0 &&
+    Number.isFinite(firstResistance) &&
+    firstResistance > 0 &&
+    Number.isFinite(secondResistance) &&
+    secondResistance > 0;
+  const seriesResistance = firstResistance + secondResistance;
+  const parallelResistance =
+    (firstResistance * secondResistance) /
+    (firstResistance + secondResistance);
+
+  return (
+    <section id="series-parallel" className={`${card} mt-8 scroll-mt-28`}>
+      <h2 className="mb-3 text-xl font-semibold text-emerald-300">Series vs. parallel circuits</h2>
+      <p className="mb-5 text-sm leading-6 text-slate-400">
+        In series there is one path, so the same current passes through every
+        resistor and resistances add. In parallel there are multiple paths:
+        each branch has the same voltage, branch currents add, and the total
+        equivalent resistance is lower than either individual resistance.
+        Adding another resistor in series raises Rₑq; adding a new parallel
+        branch lowers Rₑq and increases the total current drawn from a fixed
+        voltage source.
+      </p>
+      <div className="grid gap-4 md:grid-cols-3">
+        <NumberField label="Source voltage V (V)" value={voltageInput} onChange={setVoltageInput} />
+        <NumberField label="Resistor R₁ (Ω)" value={firstResistanceInput} onChange={setFirstResistanceInput} />
+        <NumberField label="Resistor R₂ (Ω)" value={secondResistanceInput} onChange={setSecondResistanceInput} />
+      </div>
+      {!valid ? (
+        <p role="alert" className="mt-4 text-sm text-rose-200">Enter a non-negative voltage and positive resistor values.</p>
+      ) : (
+        <div className="mt-5 grid gap-4 md:grid-cols-2" aria-live="polite">
+          <div className="rounded-xl bg-slate-900 p-4">
+            <h3 className="font-semibold text-sky-200">Series</h3>
+            <p className="mt-2 text-sm text-slate-300">Rₑq = R₁ + R₂ = {formatValue(firstResistance)} + {formatValue(secondResistance)} = {formatValue(seriesResistance)} Ω</p>
+            <p className="mt-1 text-sm text-slate-300">Total I = V/Rₑq = {formatValue(voltage)}/{formatValue(seriesResistance)} = {formatValue(voltage / seriesResistance)} A</p>
+            <p className="mt-2 text-xs leading-5 text-slate-400">Adding a series resistor increases total resistance and reduces total current at fixed voltage.</p>
+          </div>
+          <div className="rounded-xl bg-slate-900 p-4">
+            <h3 className="font-semibold text-violet-200">Parallel</h3>
+            <p className="mt-2 text-sm text-slate-300">1/Rₑq = 1/R₁ + 1/R₂, so Rₑq = {formatValue(parallelResistance)} Ω</p>
+            <p className="mt-1 text-sm text-slate-300">Total I = V/Rₑq = {formatValue(voltage / parallelResistance)} A</p>
+            <p className="mt-2 text-xs leading-5 text-slate-400">Branch currents are V/R₁ = {formatValue(voltage / firstResistance)} A and V/R₂ = {formatValue(voltage / secondResistance)} A; they add to the total.</p>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
 type Question = { q: string; options: string[]; answer: number; why: string };
 
 const questions: Question[] = [
   {
-    q: "Electric charge expresses the extent to which a unit of matter has more or fewer ____ than protons.",
-    options: ["neutrons", "electrons", "photons", "neutrinos"],
+    q: "Which set gives the approximate masses of a proton, neutron, and electron in the correct order?",
+    options: [
+      "9.11 × 10⁻³¹ kg, 1.675 × 10⁻²⁷ kg, 1.673 × 10⁻²⁷ kg",
+      "1.673 × 10⁻²⁷ kg, 1.675 × 10⁻²⁷ kg, 9.11 × 10⁻³¹ kg",
+      "1.675 × 10⁻²⁷ kg, 9.11 × 10⁻³¹ kg, 1.673 × 10⁻²⁷ kg",
+      "1.602 × 10⁻¹⁹ kg, 1.602 × 10⁻¹⁹ kg, 1.602 × 10⁻¹⁹ kg",
+    ],
     answer: 1,
-    why: "The lecture defines charge as how many more or fewer electrons than protons a unit of matter has.",
+    why: "A proton has mass 1.673 × 10⁻²⁷ kg, a neutron 1.675 × 10⁻²⁷ kg, and an electron 9.11 × 10⁻³¹ kg.",
   },
   {
     q: "Which choice correctly gives the charge of each particle?",
@@ -158,32 +484,32 @@ const questions: Question[] = [
     why: "Conductors readily conduct electric charge, while insulators conduct it poorly.",
   },
   {
-    q: "Which list shows materials the lecture names as common insulators?",
+    q: "Two resistors of 6 Ω and 3 Ω are connected in series. What is their equivalent resistance?",
     options: [
-      "Copper, aluminum, silver",
-      "Gold, silver, rubber",
-      "Rubber, many plastics, wood",
-      "Copper, rubber, aluminum",
+      "2 Ω",
+      "3 Ω",
+      "9 Ω",
+      "18 Ω",
     ],
     answer: 2,
-    why: "The lecture lists rubber, many plastics, and wood as common insulators. Copper, aluminum, silver, and gold are conductors.",
+    why: "Series resistances add: Rₑq = R₁ + R₂ = 6 Ω + 3 Ω = 9 Ω.",
   },
   {
-    q: "What is Coulomb’s law used to find?",
+    q: "A current of 2.5 A passes through an 8 Ω resistor. What is the voltage across it?",
     options: [
-      "The electrostatic force between two point charges",
-      "The mass of an electron",
-      "The number of protons in an atom",
-      "The temperature of a charged object",
+      "0.31 V",
+      "3.2 V",
+      "20 V",
+      "80 V",
     ],
-    answer: 0,
-    why: "Coulomb’s law gives the magnitude of the electrostatic force one point charge exerts on another.",
+    answer: 2,
+    why: "Using V = IR, V = (2.5 A)(8 Ω) = 20 V.",
   },
   {
-    q: "What is the approximate value of Coulomb’s constant k?",
-    options: ["1.602 × 10⁻¹⁹ N·m²/C²", "8.99 × 10⁹ N·m²/C²", "6.24 × 10¹⁸ N·m²/C²", "1.38 × 10⁻²³ N·m²/C²"],
-    answer: 1,
-    why: "In SI units, k ≈ 8.99 × 10⁹ N·m²/C².",
+    q: "A 12 V source is connected across a 4 Ω resistor. What current flows?",
+    options: ["0.33 A", "2 A", "3 A", "48 A"],
+    answer: 2,
+    why: "Ohm's law gives I = V/R = 12 V / 4 Ω = 3 A.",
   },
   {
     q: "In F = k|q₁q₂|/r², what does r represent?",
@@ -215,10 +541,15 @@ const questions: Question[] = [
     why: "E = F / |q₀|: force divided by the magnitude of the test charge.",
   },
   {
-    q: "Which formula gives electric field intensity?",
-    options: ["E = F / |q₀|", "E = F × |q₀|", "E = |q₀| / F", "E = F + |q₀|"],
+    q: "If resistance doubles while voltage stays constant, what happens to current in an ohmic circuit?",
+    options: [
+      "It becomes half as large",
+      "It doubles",
+      "It stays the same",
+      "It becomes four times as large",
+    ],
     answer: 0,
-    why: "Electric field intensity is force per unit test charge: E = F / |q₀|.",
+    why: "From I = V/R, with V fixed current is inversely proportional to resistance. Doubling R halves the current.",
   },
   {
     q: "What is the SI unit of electric field intensity?",
@@ -238,15 +569,17 @@ const questions: Question[] = [
     why: "The field direction is the direction of force on a positive test charge, so a negative charge feels a force the opposite way.",
   },
   {
-    q: "An electric field of 2.0 N/C acts on a charge of +18 × 10⁻⁸ C. What is the force magnitude?",
-    options: ["3.6 × 10⁻⁷ N", "9.0 × 10⁻⁸ N", "3.6 × 10⁻⁶ N", "3.6 × 10⁻⁸ N"],
+    q: "A force of 0.60 N acts on a +3.0 μC test charge. What is the electric-field magnitude?",
+    options: ["2.0 × 10⁵ N/C", "2.0 × 10⁻⁶ N/C", "5.0 × 10⁻⁶ N/C", "1.8 × 10⁻⁶ N/C"],
     answer: 0,
-    why: "F = E|q₀| = (2.0 N/C)(18 × 10⁻⁸ C) = 3.6 × 10⁻⁷ N.",
+    why: "E = F/|q₀| = 0.60 N/(3.0 × 10⁻⁶ C) = 2.0 × 10⁵ N/C.",
   },
 ];
 const quizOptionCounts = questions.map((question) => question.options.length);
 
 export default function ElectrostaticsLesson() {
+  const { eligibility, error: eligibilityError, refresh: refreshEligibility } =
+    useLessonQuizEligibility("electricity");
   /* Coulomb calculator (inputs kept as text so empty/invalid input can be detected) */
   const [q1, setQ1] = useState("2");
   const [q2, setQ2] = useState("-3");
@@ -350,9 +683,9 @@ export default function ElectrostaticsLesson() {
     document.getElementById("quiz")?.scrollIntoView({ behavior: "smooth" });
   }
 
-  function submitQuiz() {
-    setSubmitted(true);
-    void saveResult(
+  async function submitQuiz() {
+    if (!eligibility?.eligible) return;
+    const saved = await saveResult(
       "electricity",
       quizAttempt.map((_, index) => answers[index] ?? -1),
       quizAttempt.map((question) => ({
@@ -363,6 +696,7 @@ export default function ElectrostaticsLesson() {
         optionOrder: question.optionOrder,
       }))
     );
+    if (saved) setSubmitted(true);
   }
 
   function renderOhmsLawCalculator() {
@@ -508,6 +842,19 @@ export default function ElectrostaticsLesson() {
           values below. The simulator is an introductory DC model, not a
           detailed filament or transient simulation.
         </p>
+        <div className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {[
+            ["Battery", "Provides potential difference (voltage) that drives charge around a closed path."],
+            ["Resistor", "Limits current and converts electrical energy to other forms, such as heat."],
+            ["Bulb", "Uses electrical power to produce light; more current at fixed resistance means greater power and brightness."],
+            ["Connecting wires", "Provide a conducting path that completes the circuit; ideal wires have negligible resistance."],
+          ].map(([name, description]) => (
+            <div key={name} className="rounded-xl bg-slate-900 p-3">
+              <p className="font-semibold text-emerald-200">{name}</p>
+              <p className="mt-1 text-xs leading-5 text-slate-400">{description}</p>
+            </div>
+          ))}
+        </div>
         <div className="mb-5 grid gap-4 md:grid-cols-3">
           <NumberField label="Battery voltage (V)" value={batteryVoltageInput} onChange={setBatteryVoltageInput} hint="Use zero or a positive voltage." />
           <NumberField label="Resistor resistance (Ω)" value={resistorResistanceInput} onChange={setResistorResistanceInput} hint="Must be greater than zero." />
@@ -610,10 +957,13 @@ export default function ElectrostaticsLesson() {
             </div>
             <p className="mt-3 text-xs leading-5 text-slate-500">
               {circuitValid && bulbCount > 0 && batteryCount > 0 && equivalentResistance > 0
-                ? `Bulb power is approximately ${formatValue(bulbPower)} W each in this constant-resistance model.`
+                ? `Rₑq = ${resistorCount}(${formatValue(resistorResistance)} Ω) + ${bulbCount}(${formatValue(bulbResistance)} Ω) = ${formatValue(equivalentResistance)} Ω; I = V/Rₑq = ${formatValue(sourceVoltage)} V / ${formatValue(equivalentResistance)} Ω = ${formatValue(current)} A. Bulb power is approximately ${formatValue(bulbPower)} W each.`
                 : circuitValid
                   ? "A closed path with a source and resistance is required for nonzero current."
                   : "Correct the component values above to calculate current and bulb power."}
+            </p>
+            <p className="mt-2 text-xs leading-5 text-slate-500">
+              At fixed bulb resistance, brightness follows the bulb&apos;s power P = I²R (also P = VI): changing voltage or resistance changes current, and therefore the bulb&apos;s modeled brightness. A real filament&apos;s resistance changes as it heats.
             </p>
           </div>
         </div>
@@ -665,10 +1015,46 @@ export default function ElectrostaticsLesson() {
           </div>
           <p className="mt-4 text-sm leading-6 text-slate-400">
             <b className="text-slate-200">Elementary charge:</b> the proton and the electron have
-            the same charge magnitude, about 1.602 × 10⁻¹⁹ C. The coulomb is a large unit:
+            equal charge magnitudes, e = 1.602 × 10⁻¹⁹ C, but opposite signs. Their charges cancel
+            in a neutral atom; a proton is positive and an electron negative. The coulomb is a large unit:
             1 C ≈ 1 / (1.602 × 10⁻¹⁹) ≈ 6.24 × 10¹⁸ elementary charges, so lab values are usually
-            in pC, nC, or μC.
+            in picocoulombs (pC = 10⁻¹² C), nanocoulombs (nC = 10⁻⁹ C), or microcoulombs (μC = 10⁻⁶ C).
           </p>
+          <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
+            <div className="rounded-2xl bg-slate-900 p-5">
+              <h3 className="font-semibold text-sky-200">Atomic structure</h3>
+              <p className="mt-2 text-sm leading-6 text-slate-300">
+                The nucleus contains positive protons and neutral neutrons. Negative electrons
+                surround the nucleus. Protons and electrons have the same charge magnitude e
+                because charge is quantized in elementary units, but their signs are opposite.
+                A neutral atom has equal numbers of protons and electrons.
+              </p>
+              <ul className="mt-3 space-y-2 text-sm text-slate-400">
+                <li>Proton mass: <strong className="text-slate-200">1.673 × 10⁻²⁷ kg</strong></li>
+                <li>Neutron mass: <strong className="text-slate-200">1.675 × 10⁻²⁷ kg</strong></li>
+                <li>Electron mass: <strong className="text-slate-200">9.11 × 10⁻³¹ kg</strong></li>
+              </ul>
+            </div>
+            <div className="rounded-2xl bg-slate-900 p-5">
+              <svg viewBox="0 0 320 180" role="img" aria-label="Atom diagram showing protons and neutrons in a nucleus with electrons around it" className="mx-auto h-40 w-full max-w-sm">
+                <ellipse cx="160" cy="90" rx="125" ry="48" fill="none" stroke="#38BDF8" strokeOpacity=".6" strokeWidth="2" transform="rotate(-28 160 90)" />
+                <ellipse cx="160" cy="90" rx="125" ry="48" fill="none" stroke="#A78BFA" strokeOpacity=".6" strokeWidth="2" transform="rotate(28 160 90)" />
+                <circle cx="160" cy="90" r="13" fill="#34D399" />
+                <circle cx="146" cy="83" r="11" fill="#F472B6" />
+                <circle cx="174" cy="81" r="11" fill="#34D399" />
+                <circle cx="160" cy="103" r="11" fill="#F472B6" />
+                <circle cx="40" cy="52" r="7" fill="#60A5FA" />
+                <circle cx="278" cy="126" r="7" fill="#60A5FA" />
+                <text x="144" y="87" fill="#0F172A" fontSize="10" fontWeight="bold">p⁺</text>
+                <text x="168" y="85" fill="#0F172A" fontSize="10" fontWeight="bold">n⁰</text>
+                <text x="155" y="107" fill="#0F172A" fontSize="10" fontWeight="bold">p⁺</text>
+                <text x="22" y="38" fill="#BFDBFE" fontSize="12">e⁻</text>
+                <text x="280" y="116" fill="#BFDBFE" fontSize="12">e⁻</text>
+                <text x="116" y="166" fill="#CBD5E1" fontSize="12">Nucleus: protons + neutrons</text>
+              </svg>
+              <p className="text-center text-xs text-slate-500">Schematic — not to scale.</p>
+            </div>
+          </div>
         </section>
 
         {/* ---------- 2. Properties of charge ---------- */}
@@ -697,6 +1083,7 @@ export default function ElectrostaticsLesson() {
               </p>
             </div>
           </div>
+          <ChargeTransferActivity />
         </section>
 
         {/* ---------- Conductors and insulators ---------- */}
@@ -718,6 +1105,7 @@ export default function ElectrostaticsLesson() {
               </p>
             </div>
           </div>
+          <MaterialClassificationActivity />
         </section>
 
         {/* ---------- 3. Coulomb's law ---------- */}
@@ -812,10 +1200,19 @@ export default function ElectrostaticsLesson() {
               <p className="mt-1 text-sm text-slate-200">Doubling r reduces the force to one-fourth.</p>
             </div>
           </div>
+          {coulombValid && (
+            <div className="mt-4 rounded-xl bg-slate-900 p-4 text-sm leading-6 text-slate-300" aria-live="polite">
+              <p className="font-semibold text-sky-200">Live substitution</p>
+              <p>q₁ = {formatValue(q1Num)} μC = {formatValue(q1Num * MICRO)} C; q₂ = {formatValue(q2Num)} μC = {formatValue(q2Num * MICRO)} C.</p>
+              <p>F = k|q₁q₂|/r² = (8.99 × 10⁹)|({formatValue(q1Num * MICRO)})({formatValue(q2Num * MICRO)})|/({formatValue(rNum)} m)² = {formatValue(force)} N.</p>
+              <p>Same-sign charges repel; opposite-sign charges attract. This interaction is {interaction.toLowerCase()}.</p>
+            </div>
+          )}
           <p className="mt-3 text-xs text-slate-500">
             This is an idealized point-charge calculation; real systems may include additional
             charges and forces.
           </p>
+          <CoulombPractice />
         </section>
 
         {/* ---------- 4. Electric field intensity ---------- */}
@@ -863,6 +1260,17 @@ export default function ElectrostaticsLesson() {
               <li className="rounded-lg bg-emerald-400/5 p-2 font-semibold text-emerald-300"><b>Final Answer:</b> (a) 3.6 × 10⁻⁷ N along the field; (b) 4.8 × 10⁻⁷ N opposite the field.</li>
             </ol>}
           </div>
+          <div className="mt-4 rounded-xl border border-violet-300/20 bg-slate-900/70 p-4 text-sm leading-7 text-slate-300">
+            <p className="font-semibold text-violet-300">Electric-field example</p>
+            <p>Given a force magnitude F = 0.60 N on a positive test charge q₀ = +3.0 μC, find E.</p>
+            <ol className="mt-2 space-y-1">
+              <li><b className="text-white">Formula:</b> E = F/|q₀|.</li>
+              <li><b className="text-white">Substitution:</b> q₀ = 3.0 × 10⁻⁶ C; E = 0.60 N/(3.0 × 10⁻⁶ C).</li>
+              <li><b className="text-white">Calculation:</b> E = 2.0 × 10⁵ N/C.</li>
+              <li><b className="text-emerald-300">Answer:</b> E = 2.0 × 10⁵ N/C, in the direction of the force because q₀ is positive.</li>
+            </ol>
+            <p className="mt-2 text-xs text-slate-400">A negative test charge in this field would feel a force in the opposite direction.</p>
+          </div>
         </section>
 
         {/* ---------- Electric field calculator ---------- */}
@@ -906,13 +1314,35 @@ export default function ElectrostaticsLesson() {
             Enter voltage and resistance to calculate current and electrical
             power. Resistance must be greater than zero.
           </p>
+          <div className="mb-5 grid gap-3 md:grid-cols-3">
+            <div className="rounded-xl bg-slate-900 p-4">
+              <p className="text-sm font-bold text-sky-200">Voltage · V</p>
+              <p className="mt-1 text-xs leading-5 text-slate-400">Potential difference that transfers energy to charge, measured in volts (V).</p>
+            </div>
+            <div className="rounded-xl bg-slate-900 p-4">
+              <p className="text-sm font-bold text-emerald-200">Current · I</p>
+              <p className="mt-1 text-xs leading-5 text-slate-400">Rate of charge flow, measured in amperes (A).</p>
+            </div>
+            <div className="rounded-xl bg-slate-900 p-4">
+              <p className="text-sm font-bold text-violet-200">Resistance · R</p>
+              <p className="mt-1 text-xs leading-5 text-slate-400">Opposition to current, measured in ohms (Ω).</p>
+            </div>
+          </div>
+          <p className={`${formulaBox} text-sky-200`}>V = IR &nbsp; · &nbsp; I = V/R &nbsp; · &nbsp; R = V/I</p>
           {renderOhmsLawCalculator()}
         </section>
 
         {renderCircuitBuilder()}
+        <CircuitPractice />
+        <SeriesParallelComparison />
 
         {/* ---------- Quiz ---------- */}
         <section id="quiz" className={`${card} mt-8 scroll-mt-28`}>
+          <LessonQuizEligibilityNotice
+            eligibility={eligibility}
+            error={eligibilityError}
+            onRetry={() => void refreshEligibility()}
+          />
           <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
             <div>
               <p className="text-sm font-semibold text-emerald-300">
@@ -1078,7 +1508,11 @@ export default function ElectrostaticsLesson() {
             {!submitted ? (
               <button
                 type="button"
-                disabled={answeredCount !== quizAttempt.length}
+                disabled={
+                  answeredCount !== quizAttempt.length ||
+                  !eligibility?.eligible ||
+                  saveState === "saving"
+                }
                 onClick={submitQuiz}
                 className={`${QUIZ_SUBMIT_BUTTON_CLASS} ${quizFocus}`}
               >
@@ -1099,8 +1533,8 @@ export default function ElectrostaticsLesson() {
             saveState={saveState}
             passed={passed}
             message={saveMessage}
-            onRetry={() =>
-              void saveResult(
+            onRetry={async () => {
+              if (await saveResult(
                 "electricity",
                 quizAttempt.map((_, index) => answers[index] ?? -1),
                 quizAttempt.map((question) => ({
@@ -1110,16 +1544,16 @@ export default function ElectrostaticsLesson() {
                   questionIndex: question.questionIndex,
                   optionOrder: question.optionOrder,
                 }))
-              )
-            }
+              )) setSubmitted(true);
+            }}
           />
         </section>
 
-        <div className="mt-7 flex justify-between text-sm">
-          <Link href="/lessons/optics" className="text-slate-300 hover:text-sky-300">
-            ← Light & Reflection
-          </Link>
-        </div>
+        <LessonNavigation
+          lessonSlug="electricity"
+          previous={{ href: "/lessons/optics", label: "Light & Reflection" }}
+          finalLesson
+        />
         </div>
         </div>
       </div>

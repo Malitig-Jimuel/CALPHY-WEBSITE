@@ -7,6 +7,7 @@ import { signOut } from "next-auth/react";
 import { useEffect, useState } from "react";
 import {
   Activity,
+  BrainCircuit,
   Atom,
   BookOpen,
   ChevronDown,
@@ -28,6 +29,7 @@ type Props = Readonly<{
 }>;
 
 const auxiliaryLinks = [
+  { label: "AI Practice", href: "/ai-practice", icon: BrainCircuit },
   { label: "Quiz History", href: "/dashboard/quiz-history", icon: History },
   { label: "Performance", href: "/dashboard/performance", icon: Activity },
   { label: "About", href: "/about", icon: Info },

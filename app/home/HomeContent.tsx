@@ -3,20 +3,15 @@ import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { Activity, ArrowRight, Atom, Lightbulb } from "lucide-react";
+import { ArrowRight, Atom } from "lucide-react";
 import QuickPhysicsChallenge from "./QuickPhysicsChallenge";
 import LessonGrid from "./LessonGrid";
 import { lessons } from "../lessonModules";
+import FormulaSpotlight, { type SpotlightFormula } from "./FormulaSpotlight";
 
 const formulaSpotlights: Record<
   (typeof lessons)[number]["slug"],
-  {
-    title: string;
-    formula: string;
-    meaning: string;
-    example: string;
-    variables: string;
-  }
+  SpotlightFormula
 > = {
   "measurements-vectors": {
     title: "Average speed",
@@ -24,6 +19,13 @@ const formulaSpotlights: Record<
     meaning: "Speed = distance ÷ time",
     example: "A 120 m trip in 20 s has an average speed of 6 m/s.",
     variables: "v = speed · d = distance · t = time",
+    units: "v in m/s · d in m · t in s.",
+    application: "Use it to estimate travel time or compare how quickly objects move.",
+    workedExample: {
+      given: "d = 120 m, t = 20 s.",
+      calculation: "v = d/t = 120 m / 20 s.",
+      answer: "v = 6 m/s.",
+    },
   },
   fluids: {
     title: "Pressure",
@@ -31,6 +33,13 @@ const formulaSpotlights: Record<
     meaning: "Pressure = force ÷ area",
     example: "A 60 N force over 3 m² produces a pressure of 20 Pa.",
     variables: "P = pressure · F = force · A = area",
+    units: "P in pascals (Pa = N/m²) · F in N · A in m².",
+    application: "A sharp heel exerts more pressure than a flat shoe because its contact area is smaller.",
+    workedExample: {
+      given: "F = 60 N, A = 3 m².",
+      calculation: "P = F/A = 60 N / 3 m².",
+      answer: "P = 20 Pa.",
+    },
   },
   "temperature-heat": {
     title: "Heat and specific heat capacity",
@@ -39,6 +48,13 @@ const formulaSpotlights: Record<
     example: "Heating 0.5 kg of water by 2°C takes 4,200 J (c = 4,200 J/kg·°C).",
     variables:
       "Q = heat energy · m = mass · c = specific heat capacity · ΔT = temperature change",
+    units: "Q in J · m in kg · c in J/(kg·K) · ΔT in K (or °C for a temperature difference).",
+    application: "Estimate the energy needed to warm water or another material.",
+    workedExample: {
+      given: "m = 0.5 kg, c = 4,200 J/(kg·K), ΔT = 2 K.",
+      calculation: "Q = mcΔT = (0.5)(4,200)(2).",
+      answer: "Q = 4,200 J.",
+    },
   },
   "waves-sound": {
     title: "Wave equation",
@@ -46,6 +62,13 @@ const formulaSpotlights: Record<
     meaning: "Wave speed = frequency × wavelength",
     example: "A 4 Hz wave with a 0.5 m wavelength travels at 2 m/s.",
     variables: "v = wave speed · f = frequency · λ = wavelength",
+    units: "v in m/s · f in hertz (Hz = s⁻¹) · λ in m.",
+    application: "Relate pitch and spacing for sound or other waves traveling through a medium.",
+    workedExample: {
+      given: "f = 4 Hz, λ = 0.5 m.",
+      calculation: "v = fλ = (4 s⁻¹)(0.5 m).",
+      answer: "v = 2 m/s.",
+    },
   },
   optics: {
     title: "Mirror equation",
@@ -53,6 +76,13 @@ const formulaSpotlights: Record<
     meaning: "Relates focal length to object and image distances",
     example: "With f = 10 cm and do = 30 cm, the image distance is di = 15 cm.",
     variables: "f = focal length · do = object distance · di = image distance",
+    units: "f, do, and di use the same distance unit (for example, m or cm).",
+    application: "Predict where a curved mirror forms an image, as in a reflecting telescope.",
+    workedExample: {
+      given: "f = 10 cm, do = 30 cm.",
+      calculation: "1/di = 1/f − 1/do = 1/10 − 1/30 = 1/15 cm⁻¹.",
+      answer: "di = 15 cm.",
+    },
   },
   electricity: {
     title: "Electric field intensity",
@@ -60,6 +90,13 @@ const formulaSpotlights: Record<
     meaning: "Electric field = force ÷ test-charge magnitude",
     example: "A 12 N force on a 2 C test charge gives E = 6 N/C.",
     variables: "E = electric field · F = force · q₀ = test charge",
+    units: "E in N/C · F in N · q₀ in C.",
+    application: "Describe the electric force per unit positive charge at a location.",
+    workedExample: {
+      given: "F = 12 N, |q₀| = 2 C.",
+      calculation: "E = F/|q₀| = 12 N / 2 C.",
+      answer: "E = 6 N/C.",
+    },
   },
 };
 
@@ -149,74 +186,28 @@ export default async function HomeContent() {
           </div>
         </header>
 
-        <section aria-label="Physics lessons" className="mt-6">
-          <LessonGrid moduleProgress={moduleProgress} />
+        <section aria-label="Formula spotlight" className="mx-auto mt-6 max-w-5xl">
+          <FormulaSpotlight
+            lessonTitle={formulaSpotlightLesson.title}
+            lessonHref={`/lessons/${formulaSpotlightLesson.slug}`}
+            spotlight={formulaSpotlight}
+          />
         </section>
 
-        <section className="mt-9 grid gap-4 lg:grid-cols-2">
-          <article className="rounded-2xl border border-slate-700/60 bg-[#10182B] p-5 sm:p-6">
-            <div className="flex items-center gap-3">
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-400/10 text-amber-300">
-                <Lightbulb size={20} aria-hidden="true" />
-              </span>
-              <div>
-                <p className="text-xs font-bold uppercase tracking-widest text-amber-300">
-                  Formula spotlight · {formulaSpotlightLesson.title}
-                </p>
-                <h2 className="mt-1 text-lg font-bold">
-                  {formulaSpotlight.title}
-                </h2>
-              </div>
-            </div>
-            <div className="my-4 rounded-xl border border-white/10 bg-[#080D1B] px-4 py-5 text-center">
-              <p className="text-3xl font-black tracking-wide text-amber-200 sm:text-4xl">
-                {formulaSpotlight.formula}
-              </p>
-              <p className="mt-2 text-sm text-slate-400">
-                {formulaSpotlight.meaning}
-              </p>
-            </div>
-            <p className="text-sm leading-6 text-slate-300">
-              <strong className="text-white">Example:</strong>{" "}
-              {formulaSpotlight.example}
-            </p>
-            <p className="mt-2 text-xs leading-5 text-slate-500">
-              {formulaSpotlight.variables}
-            </p>
-          </article>
-
-          <article className="rounded-2xl border border-slate-700/60 bg-[#10182B] p-5 sm:p-6">
-            <div className="flex items-center gap-3">
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-400/10 text-cyan-300">
-                <Activity size={20} aria-hidden="true" />
-              </span>
-              <div>
-                <p className="text-xs font-bold uppercase tracking-widest text-cyan-300">
-                  Study tip
-                </p>
-                <h2 className="mt-1 text-lg font-bold">
-                  Understand, don&apos;t just memorize
-                </h2>
-              </div>
-            </div>
-            <p className="mt-4 text-sm leading-6 text-slate-400">
-              Connect formulas to real situations: identify known values,
-              choose the right equation, substitute carefully, and check your
-              units.
-            </p>
-          </article>
+        <section aria-label="Physics lessons" className="mt-7">
+          <LessonGrid moduleProgress={moduleProgress} />
         </section>
 
         <section id="challenge" className="mt-9 scroll-mt-6">
           <div className="mb-4">
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-sky-300">
-              Test yourself
+              PRE-TEST · BEFORE YOU STUDY
             </p>
             <h2 className="mt-2 text-xl font-black sm:text-2xl">
               Quick Physics Challenge
             </h2>
             <p className="mt-1 text-sm text-slate-400">
-              Answer the questions and see how well you understand physics.
+              Check your starting knowledge across all six physics lessons. Your result will not mark any lesson complete.
             </p>
           </div>
           <QuickPhysicsChallenge />

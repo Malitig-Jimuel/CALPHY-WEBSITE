@@ -12,6 +12,58 @@ const allowedLessons = [
   "electricity",
 ];
 
+export async function GET(request: Request) {
+  try {
+    const lessonSlug = new URL(request.url).searchParams.get("lessonSlug");
+
+    if (!lessonSlug || !allowedLessons.includes(lessonSlug)) {
+      return NextResponse.json(
+        { error: "Invalid lesson progress request." },
+        { status: 400 }
+      );
+    }
+
+    const session = await auth();
+    if (!session?.user?.email) {
+      return NextResponse.json({ saved: false, completed: false });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email },
+      select: { id: true },
+    });
+
+    if (!user) {
+      return NextResponse.json(
+        { error: "User account not found." },
+        { status: 404 }
+      );
+    }
+
+    const progress = await prisma.lessonProgress.findUnique({
+      where: {
+        userId_lessonSlug: {
+          userId: user.id,
+          lessonSlug,
+        },
+      },
+      select: { completed: true },
+    });
+
+    return NextResponse.json({
+      saved: true,
+      completed: progress?.completed ?? false,
+    });
+  } catch (error) {
+    console.error("Failed to load lesson progress:", error);
+
+    return NextResponse.json(
+      { error: "Unable to load lesson progress." },
+      { status: 500 }
+    );
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const session = await auth();
@@ -48,6 +100,13 @@ export async function POST(request: Request) {
       );
     }
 
+    if (completed) {
+      return NextResponse.json(
+        { error: "Lesson completion can only be recorded by passing its eligible official quiz." },
+        { status: 403 }
+      );
+    }
+
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
       select: { id: true },
@@ -72,12 +131,11 @@ export async function POST(request: Request) {
       create: {
         userId: user.id,
         lessonSlug,
-        completed,
-        completedAt: completed ? now : null,
+        completed: false,
+        completedAt: null,
         lastAccessedAt: now,
       },
       update: {
-        ...(completed ? { completed: true, completedAt: now } : {}),
         lastAccessedAt: now,
       },
     });

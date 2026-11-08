@@ -1,10 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import {
-  ArrowLeft,
   ArrowRight,
   CheckCircle2,
   Droplets,
@@ -15,8 +13,13 @@ import {
   XCircle,
 } from "lucide-react";
 import LessonQuizFeedback from "../LessonQuizFeedback";
+import {
+  LessonQuizEligibilityNotice,
+  useLessonQuizEligibility,
+} from "../LessonQuizEligibility";
 import LessonHeader from "../LessonHeader";
 import LessonProgressTracker from "../LessonProgressTracker";
+import LessonNavigation from "../LessonNavigation";
 import LessonQuizQuestion, {
   getQuizOptionClass,
   QUIZ_OPTION_BASE_CLASS,
@@ -376,6 +379,8 @@ function WorkedExample({ example }: { example: Example }) {
 }
 
 const WATER_DENSITY = 1000;
+const AIR_DENSITY = 1.225;
+const WING_REFERENCE_SPEED = 20;
 
 /* ---------- Archimedes lab layout (pixels) ---------- */
 const TANK_H = 360; // height of the tank box
@@ -439,6 +444,8 @@ function initialDots(): number[][] {
 }
 
 export default function FluidsPage() {
+  const { eligibility, error: eligibilityError, refresh: refreshEligibility } =
+    useLessonQuizEligibility("fluids");
   // Archimedes lab
   const [objectDensity, setObjectDensity] = useState(600);
   const [fluidDensity, setFluidDensity] = useState(1000);
@@ -452,6 +459,10 @@ export default function FluidsPage() {
   const [flowSpeed, setFlowSpeed] = useState(2.5);
   const [dots, setDots] = useState<number[][]>(initialDots);
   const flowSpeedRef = useRef(flowSpeed);
+
+  // Illustrative wing model: vary upper-surface speed against a fixed lower reference.
+  const [upperWingSpeed, setUpperWingSpeed] = useState(30);
+  const [wingPracticeAnswer, setWingPracticeAnswer] = useState<string | null>(null);
 
   // Quiz
   const [answers, setAnswers] = useState<Record<number, number>>({});
@@ -529,6 +540,15 @@ export default function FluidsPage() {
   const vWide = flowSpeed; // m/s
   const vNarrow = vWide * SPEED_RATIO; // m/s
   const pNarrow = P_UPSTREAM - 0.5 * WATER_DENSITY * (vNarrow ** 2 - vWide ** 2); // Pa
+  const lowerWingPressure = 101325;
+  const upperWingPressure =
+    lowerWingPressure +
+    0.5 * AIR_DENSITY * (WING_REFERENCE_SPEED ** 2 - upperWingSpeed ** 2);
+  const wingPressureDifference = lowerWingPressure - upperWingPressure;
+  const wingPressureDifferenceWidth = Math.min(
+    100,
+    (wingPressureDifference / 735) * 100
+  );
   const levelFor = (pressure: number) =>
     8 + Math.min(1, Math.max(0, (pressure - 140000) / 60000)) * (TUBE_H - 12);
   const wideLevel = levelFor(P_UPSTREAM);
@@ -549,9 +569,9 @@ export default function FluidsPage() {
     reshuffleQuiz();
   };
 
-  const submitQuiz = () => {
-    setSubmitted(true);
-    void saveResult(
+  const submitQuiz = async () => {
+    if (!eligibility?.eligible) return;
+    const saved = await saveResult(
       "fluids",
       quizAttempt.map((_, index) => answers[index] ?? -1),
       quizAttempt.map((question) => ({
@@ -562,6 +582,7 @@ export default function FluidsPage() {
         optionOrder: question.optionOrder,
       }))
     );
+    if (saved) setSubmitted(true);
   };
 
   const continuitySliders = [
@@ -967,39 +988,299 @@ export default function FluidsPage() {
           <p className="mb-6 max-w-3xl text-sm leading-6 text-slate-400">
             Bernoulli’s equation is really energy conservation for a moving fluid: pressure energy,
             kinetic energy, and potential energy per unit volume add up to the same total at every point
-            along a streamline. It helps explain how airplane wings generate lift and how spray bottles
-            pull liquid up a tube. Combine it with the continuity principle: a narrow section makes the
-            fluid faster, and Bernoulli then tells you the pressure there is lower.
+            along a streamline. It helps relate pressure and speed in a pipe, and can help explain
+            pressure differences around a wing. Combine it with the continuity principle: a narrow
+            section makes the fluid faster, and Bernoulli then tells you the pressure there is lower.
           </p>
-          <div className="mb-6 grid gap-4 rounded-2xl border border-white/10 bg-[#080D1B] p-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+          <div className="mb-6 rounded-2xl border border-white/10 bg-[#080D1B] p-5">
+            <h3 className="font-bold text-sky-300">Bernoulli’s equation: energy per unit volume</h3>
+            <p className="mt-2 font-mono text-xl font-bold text-white sm:text-2xl">
+              P + ½ρv² + ρgh = constant
+            </p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              {[
+                ["P", "Static pressure (Pa)"],
+                ["ρ", "Fluid density (kg/m³)"],
+                ["v", "Fluid speed (m/s)"],
+                ["g and h", "Gravity (m/s²) and height (m)"],
+              ].map(([symbol, meaning]) => (
+                <div key={symbol} className="rounded-xl bg-white/[0.04] p-3">
+                  <p className="font-mono font-bold text-sky-300">{symbol}</p>
+                  <p className="mt-1 text-sm leading-5 text-slate-400">{meaning}</p>
+                </div>
+              ))}
+            </div>
+            <p className="mt-4 text-sm leading-6 text-slate-400">
+              This form assumes steady, incompressible, non-viscous flow and compares points on the
+              same streamline. At the same height, a rise in speed corresponds to a drop in static
+              pressure. Air around a wing is only approximated as incompressible at ordinary
+              subsonic speeds.
+            </p>
+          </div>
+
+          <div className="mb-6 rounded-2xl border border-sky-400/20 bg-[#080D1B] p-5 sm:p-6">
             <div>
-              <h3 className="font-bold text-sky-300">Application: airflow around an airplane wing</h3>
-              <p className="mt-2 text-sm leading-6 text-slate-400">
-                The wing deflects air downward and creates a pressure distribution across its
-                surfaces. Faster airflow over parts of the upper surface is associated with lower
-                static pressure there; the pressure difference contributes to upward lift. The
-                complete explanation also accounts for the air’s downward momentum change—there is
-                no rule that air parcels must meet again at the wing’s trailing edge.
+              <h3 className="font-bold text-sky-300">
+                Application: airflow around an airplane wing
+              </h3>
+              <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-400">
+                A wing changes the airflow around it and deflects air downward. When air moves faster
+                over the upper surface than beneath it, Bernoulli’s principle relates that faster
+                flow to lower static pressure above. The resulting pressure distribution contributes
+                to upward lift. Lift also depends on angle of attack, wing shape, and how the wing
+                redirects the surrounding air; Bernoulli’s principle alone is not a complete model.
+                Air parcels do not have to meet again at the trailing edge.
               </p>
             </div>
-            <svg
-              viewBox="0 0 360 150"
-              role="img"
-              aria-label="Airflow streamlines over and under an airplane wing, with lower pressure above and higher pressure below"
-              className="w-full max-w-sm"
-            >
-              <defs>
-                <marker id="wingFlowArrow" markerWidth="7" markerHeight="7" refX="6" refY="3" orient="auto">
-                  <path d="M0,0 L6,3 L0,6 Z" fill="#7DD3FC" />
-                </marker>
-              </defs>
-              <path d="M48 72 C112 20 228 24 314 68" fill="none" stroke="#7DD3FC" strokeWidth="2" markerEnd="url(#wingFlowArrow)" />
-              <path d="M48 80 C120 48 232 48 314 75" fill="none" stroke="#7DD3FC" strokeWidth="2" markerEnd="url(#wingFlowArrow)" />
-              <path d="M48 91 C130 106 224 105 314 91" fill="none" stroke="#A5B4FC" strokeWidth="2" markerEnd="url(#wingFlowArrow)" />
-              <path d="M88 83 Q174 42 276 82 Q188 91 88 83Z" fill="#334155" stroke="#CBD5E1" strokeWidth="2" />
-              <text x="180" y="19" fill="#7DD3FC" fontSize="12" textAnchor="middle">Faster flow · lower pressure</text>
-              <text x="180" y="129" fill="#C4B5FD" fontSize="12" textAnchor="middle">Higher pressure below contributes to lift ↑</text>
-            </svg>
+
+            <div className="mt-5 grid gap-5 lg:grid-cols-2 lg:items-center">
+              <div className="rounded-xl border border-white/10 bg-[#10182B] p-4 sm:p-5">
+                <div className="flex items-center justify-between gap-3">
+                  <label htmlFor="upperWingSpeed" className="text-sm text-slate-300">
+                    Illustrative upper-surface speed
+                  </label>
+                  <strong className="shrink-0 text-sky-300">
+                    {upperWingSpeed.toFixed(0)} m/s
+                  </strong>
+                </div>
+                <input
+                  id="upperWingSpeed"
+                  type="range"
+                  min="20"
+                  max="40"
+                  step="1"
+                  value={upperWingSpeed}
+                  onChange={(event) => setUpperWingSpeed(Number(event.target.value))}
+                  className="mt-3 w-full accent-sky-400"
+                  aria-describedby="wing-speed-note"
+                />
+                <p id="wing-speed-note" className="mt-2 text-xs leading-5 text-slate-500">
+                  Compare with a fixed {WING_REFERENCE_SPEED} m/s lower-surface reference at the same
+                  height. This simplified control illustrates the pressure-speed relationship; it
+                  does not predict the real airflow over a wing.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setUpperWingSpeed(30)}
+                  className="mt-3 inline-flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-sm text-slate-300 transition hover:bg-white/5"
+                >
+                  <RotateCcw size={14} /> Reset
+                </button>
+                <div className="mt-5 grid grid-cols-2 gap-3">
+                  <div className="rounded-xl bg-white/5 p-4">
+                    <p className="text-xs text-slate-400">Above wing · faster flow</p>
+                    <p className="mt-1 text-lg font-bold text-sky-300">
+                      {upperWingSpeed.toFixed(0)} m/s
+                    </p>
+                    <p className="mt-2 text-xs text-slate-400">Pressure</p>
+                    <p className="font-semibold text-sky-200">
+                      {(upperWingPressure / 1000).toFixed(2)} kPa
+                    </p>
+                  </div>
+                  <div className="rounded-xl bg-white/5 p-4">
+                    <p className="text-xs text-slate-400">Beneath wing · reference</p>
+                    <p className="mt-1 text-lg font-bold text-violet-300">
+                      {WING_REFERENCE_SPEED} m/s
+                    </p>
+                    <p className="mt-2 text-xs text-slate-400">Pressure</p>
+                    <p className="font-semibold text-violet-200">
+                      {(lowerWingPressure / 1000).toFixed(2)} kPa
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-4 rounded-xl bg-white/[0.04] p-4">
+                  <div className="flex flex-wrap justify-between gap-2 text-sm">
+                    <span className="text-slate-300">Pressure difference (below − above)</span>
+                    <strong className="text-emerald-300">
+                      {wingPressureDifference.toFixed(0)} Pa
+                    </strong>
+                  </div>
+                  <div
+                    className="mt-3 h-2 overflow-hidden rounded-full bg-white/10"
+                    role="meter"
+                    aria-label="Illustrative pressure difference below minus above the wing"
+                    aria-valuemin={0}
+                    aria-valuemax={735}
+                    aria-valuenow={Math.round(wingPressureDifference)}
+                  >
+                    <div
+                      className="h-full rounded-full bg-emerald-400 transition-[width]"
+                      style={{ width: `${wingPressureDifferenceWidth}%` }}
+                    />
+                  </div>
+                  <p className="mt-2 text-xs leading-5 text-slate-500" aria-live="polite">
+                    {wingPressureDifference > 0
+                      ? "The upper flow is faster, so its pressure is lower in this same-height Bernoulli comparison."
+                      : "At equal speeds and heights, this simplified comparison gives no pressure difference."}
+                  </p>
+                </div>
+              </div>
+
+              <div className="overflow-hidden rounded-xl border border-white/10 bg-[#10182B] p-3 sm:p-4">
+                <svg
+                  viewBox="0 0 360 230"
+                  role="img"
+                  aria-label={`Air flowing around a wing cross-section. Upper airflow speed ${upperWingSpeed} meters per second and lower reference speed ${WING_REFERENCE_SPEED} meters per second.`}
+                  className="mx-auto w-full max-w-xl"
+                >
+                  <defs>
+                    <marker
+                      id="wingInteractiveArrow"
+                      markerWidth="7"
+                      markerHeight="7"
+                      refX="6"
+                      refY="3"
+                      orient="auto"
+                    >
+                      <path d="M0,0 L6,3 L0,6 Z" fill="#7DD3FC" />
+                    </marker>
+                    <marker
+                      id="wingLiftArrow"
+                      markerWidth="8"
+                      markerHeight="8"
+                      refX="4"
+                      refY="1"
+                      orient="auto"
+                    >
+                      <path d="M0,6 L4,0 L8,6 Z" fill="#34D399" />
+                    </marker>
+                  </defs>
+                  <text x="180" y="17" fill="#7DD3FC" fontSize="11" textAnchor="middle">
+                    Above · {upperWingSpeed} m/s · {upperWingPressure < lowerWingPressure ? "lower pressure" : "reference pressure"}
+                  </text>
+                  <motion.path
+                    d="M18 48 C72 20 125 23 177 40 S284 58 340 48"
+                    fill="none"
+                    stroke="#7DD3FC"
+                    strokeWidth="2"
+                    strokeDasharray="8 8"
+                    markerEnd="url(#wingInteractiveArrow)"
+                    animate={{ strokeDashoffset: [0, -48] }}
+                    transition={{
+                      duration: Math.max(0.7, 2.4 * (WING_REFERENCE_SPEED / upperWingSpeed)),
+                      repeat: Infinity,
+                      ease: "linear",
+                    }}
+                  />
+                  <motion.path
+                    d="M18 78 C76 47 128 48 180 62 S286 84 340 75"
+                    fill="none"
+                    stroke="#7DD3FC"
+                    strokeOpacity=".7"
+                    strokeWidth="2"
+                    strokeDasharray="8 8"
+                    markerEnd="url(#wingInteractiveArrow)"
+                    animate={{ strokeDashoffset: [0, -48] }}
+                    transition={{
+                      duration: Math.max(0.7, 2.4 * (WING_REFERENCE_SPEED / upperWingSpeed)),
+                      repeat: Infinity,
+                      ease: "linear",
+                    }}
+                  />
+                  <motion.path
+                    d="M18 160 C85 153 126 151 180 155 S286 160 340 154"
+                    fill="none"
+                    stroke="#C4B5FD"
+                    strokeWidth="2"
+                    strokeDasharray="8 8"
+                    markerEnd="url(#wingInteractiveArrow)"
+                    animate={{ strokeDashoffset: [0, -48] }}
+                    transition={{ duration: 2.4, repeat: Infinity, ease: "linear" }}
+                  />
+                  <motion.path
+                    d="M18 184 C82 179 128 176 180 179 S285 184 340 178"
+                    fill="none"
+                    stroke="#C4B5FD"
+                    strokeOpacity=".7"
+                    strokeWidth="2"
+                    strokeDasharray="8 8"
+                    markerEnd="url(#wingInteractiveArrow)"
+                    animate={{ strokeDashoffset: [0, -48] }}
+                    transition={{ duration: 2.4, repeat: Infinity, ease: "linear" }}
+                  />
+                  <path
+                    d="M60 127 C119 77 219 82 300 120 C222 111 137 120 60 127Z"
+                    fill="#334155"
+                    stroke="#CBD5E1"
+                    strokeWidth="2"
+                  />
+                  <line
+                    x1="180"
+                    y1="151"
+                    x2="180"
+                    y2="132"
+                    stroke="#34D399"
+                    strokeWidth="3"
+                    markerEnd="url(#wingLiftArrow)"
+                  />
+                  <text x="192" y="146" fill="#6EE7B7" fontSize="11">
+                    Lift
+                  </text>
+                  <text x="180" y="217" fill="#C4B5FD" fontSize="11" textAnchor="middle">
+                    Beneath · {WING_REFERENCE_SPEED} m/s · reference pressure
+                  </text>
+                </svg>
+                <p className="mt-2 text-center text-xs leading-5 text-slate-500">
+                  Moving dashes are airflow streamlines. The pressure difference across the wing
+                  contributes to lift; the wing also turns air downward.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="mb-6 rounded-2xl border border-violet-400/15 bg-violet-400/5 p-5">
+            <h3 className="font-bold text-violet-300">Practice · airflow around a wing</h3>
+            <p className="mt-2 text-sm leading-6 text-slate-300">
+              In a same-height comparison, air moves faster over the upper wing surface than below.
+              According to Bernoulli’s principle, what happens to the static pressure above the wing?
+            </p>
+            <div className="mt-4 grid gap-2 sm:grid-cols-3">
+              {[
+                { label: "It is lower above the wing", correct: true },
+                { label: "It is higher above the wing", correct: false },
+                { label: "It must be exactly equal", correct: false },
+              ].map((choice) => {
+                const selected = wingPracticeAnswer === choice.label;
+                const state =
+                  wingPracticeAnswer === null
+                    ? "default"
+                    : choice.correct
+                      ? "correct"
+                      : selected
+                        ? "incorrect"
+                        : "muted";
+
+                return (
+                  <button
+                    key={choice.label}
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() => setWingPracticeAnswer(choice.label)}
+                    className={`${QUIZ_OPTION_BASE_CLASS} ${getQuizOptionClass(state)}`}
+                  >
+                    {choice.label}
+                  </button>
+                );
+              })}
+            </div>
+            {wingPracticeAnswer !== null && (
+              <p className="mt-4 rounded-xl bg-[#080D1B] p-4 text-sm leading-6 text-slate-300" aria-live="polite">
+                <strong
+                  className={
+                    wingPracticeAnswer === "It is lower above the wing"
+                      ? "text-emerald-300"
+                      : "text-rose-300"
+                  }
+                >
+                  {wingPracticeAnswer === "It is lower above the wing"
+                    ? "Correct. "
+                    : "Not quite. "}
+                </strong>
+                Under the same-height Bernoulli comparison, greater airflow speed means lower static
+                pressure. The higher pressure beneath the wing relative to above contributes to lift;
+                a real wing’s lift also depends on its angle of attack and the surrounding airflow.
+              </p>
+            )}
           </div>
           <div className="grid gap-8 lg:grid-cols-2 lg:items-center">
             <div className="rounded-2xl border border-white/10 bg-[#080D1B] p-5">
@@ -1111,6 +1392,11 @@ export default function FluidsPage() {
           id="quiz"
           className="mb-12 scroll-mt-24 rounded-3xl border border-white/10 bg-[#111A2E] p-6 md:p-8"
         >
+          <LessonQuizEligibilityNotice
+            eligibility={eligibility}
+            error={eligibilityError}
+            onRetry={() => void refreshEligibility()}
+          />
           <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
             <div>
               <p className="text-sm font-semibold text-emerald-300">CHECK YOUR KNOWLEDGE</p>
@@ -1185,7 +1471,11 @@ export default function FluidsPage() {
             {!submitted ? (
               <button
                 type="button"
-                disabled={Object.keys(answers).length !== quizAttempt.length}
+                disabled={
+                  Object.keys(answers).length !== quizAttempt.length ||
+                  !eligibility?.eligible ||
+                  saveState === "saving"
+                }
                 onClick={submitQuiz}
                 className={QUIZ_SUBMIT_BUTTON_CLASS}
               >
@@ -1205,8 +1495,8 @@ export default function FluidsPage() {
             saveState={saveState}
             passed={passed}
             message={saveMessage}
-            onRetry={() =>
-              void saveResult(
+            onRetry={async () => {
+              if (await saveResult(
                 "fluids",
                 quizAttempt.map((_, index) => answers[index] ?? -1),
                 quizAttempt.map((question) => ({
@@ -1216,16 +1506,16 @@ export default function FluidsPage() {
                   questionIndex: question.questionIndex,
                   optionOrder: question.optionOrder,
                 }))
-              )
-            }
+              )) setSubmitted(true);
+            }}
           />
         </section>
 
-        <footer className="flex flex-wrap items-center justify-between gap-4 border-t border-white/10 pt-6 text-sm text-slate-500">
-          <Link href="/lessons/measurements-vectors" className="inline-flex items-center gap-2 text-sky-300 hover:text-sky-200">
-            Previous lesson <ArrowLeft size={16} />
-          </Link>
-        </footer>
+        <LessonNavigation
+          lessonSlug="fluids"
+          previous={{ href: "/lessons/measurements-vectors", label: "Measurements & Vectors" }}
+          next={{ href: "/lessons/temperature-heat", label: "Temperature & Heat" }}
+        />
         </div>
         </div>
       </div>

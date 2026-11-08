@@ -2,8 +2,13 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { revalidateQuizPages } from "@/lib/revalidateQuizPages";
-
-const PASS_PERCENT = 60;
+import {
+  isLessonSlug,
+  prerequisiteFor,
+  readGuestQuizProgress,
+  writeGuestQuizProgress,
+} from "@/lib/lessonQuizSequence";
+import { LESSON_QUIZ_PASS_PERCENT } from "../../lessons/lessonQuizPassing";
 
 const lessonQuizzes: Record<string, number[]> = {
   "measurements-vectors": [
@@ -14,11 +19,11 @@ const lessonQuizzes: Record<string, number[]> = {
     1, 2, 1, 3, 0, 2, 1, 2, 3, 0, 2, 0, 2, 2, 1, 3, 0, 3, 1, 0,
   ],
   "waves-sound": [
-    1, 1, 2, 0, 1, 2, 3, 0, 2, 3, 1, 2, 0, 1, 2, 3, 1, 0, 2, 3,
+    1, 2, 1, 1, 0, 0, 2, 0, 1, 2, 2, 2, 2, 0, 1, 2, 1, 1, 0, 3,
   ],
   optics: [1, 2, 3, 0, 1, 2, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2],
   electricity: [
-    1, 2, 0, 1, 2, 0, 1, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0,
+    1, 2, 0, 1, 2, 0, 1, 0, 1, 2, 2, 2, 2, 0, 1, 2, 0, 1, 2, 0,
   ],
 };
 
@@ -188,6 +193,35 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "User account not found." }, { status: 404 });
     }
 
+    if (!isLessonSlug(lessonSlug)) {
+      return NextResponse.json({ error: "Unknown lesson quiz." }, { status: 400 });
+    }
+
+    const prerequisite = prerequisiteFor(lessonSlug);
+    if (prerequisite) {
+      const completedPrerequisite = user
+        ? await prisma.lessonProgress.findUnique({
+            where: {
+              userId_lessonSlug: {
+                userId: user.id,
+                lessonSlug: prerequisite.slug,
+              },
+            },
+            select: { completed: true },
+          }).then((progress) => progress?.completed ?? false)
+        : readGuestQuizProgress(request).has(prerequisite.slug);
+
+      if (!completedPrerequisite) {
+        return NextResponse.json(
+          {
+            error: `Pass ${prerequisite.title}'s quiz before officially submitting this quiz. You can still study and practice this lesson.`,
+            prerequisiteTitle: prerequisite.title,
+          },
+          { status: 403 }
+        );
+      }
+    }
+
     const answerRecords = questionSnapshots.map((snapshot, index) => {
       const selectedIndex = selectedIndexes[index];
       const questionCorrectIndex = correctIndexes[snapshot.questionIndex];
@@ -212,61 +246,68 @@ export async function POST(request: Request) {
 
     const score = answerRecords.filter((answer) => answer.isCorrect).length;
     const percentage = Math.round((score / correctIndexes.length) * 100);
-    const passed = percentage >= PASS_PERCENT;
+    const passed = percentage >= LESSON_QUIZ_PASS_PERCENT;
 
     if (!user) {
-      return NextResponse.json({
+      const response = NextResponse.json({
         saved: false,
         score,
         totalQuestions: correctIndexes.length,
         passed,
         moduleCompleted: false,
-        passPercent: PASS_PERCENT,
+        passPercent: LESSON_QUIZ_PASS_PERCENT,
       });
+      if (passed) {
+        const completed = readGuestQuizProgress(request);
+        completed.add(lessonSlug);
+        writeGuestQuizProgress(response, request, completed);
+        response.headers.set("Cache-Control", "no-store");
+      }
+      return response;
     }
 
-    const attempt = await prisma.quizAttempt.create({
-      data: {
-        userId: user.id,
-        quizId: lessonSlug,
-        score,
-        totalQuestions: correctIndexes.length,
-        answers: { create: answerRecords },
-      },
-    });
+    const { attempt, moduleCompleted } = await prisma.$transaction(async (transaction) => {
+      const savedAttempt = await transaction.quizAttempt.create({
+        data: {
+          userId: user.id,
+          quizId: lessonSlug,
+          score,
+          totalQuestions: correctIndexes.length,
+          answers: { create: answerRecords },
+        },
+      });
 
-    // Completion rule: passing the lesson quiz completes the module.
-    // A module that is already complete stays complete.
-    const existingProgress = await prisma.lessonProgress.findUnique({
-      where: {
-        userId_lessonSlug: { userId: user.id, lessonSlug },
-      },
-      select: { completed: true },
-    });
-
-    let moduleCompleted = existingProgress?.completed ?? false;
-    const now = new Date();
-
-    if (passed && !moduleCompleted) {
-      await prisma.lessonProgress.upsert({
+      const existingProgress = await transaction.lessonProgress.findUnique({
         where: {
           userId_lessonSlug: { userId: user.id, lessonSlug },
         },
-        create: {
-          userId: user.id,
-          lessonSlug,
-          completed: true,
-          completedAt: now,
-          lastAccessedAt: now,
-        },
-        update: {
-          completed: true,
-          completedAt: now,
-          lastAccessedAt: now,
-        },
+        select: { completed: true },
       });
-      moduleCompleted = true;
-    }
+
+      let completed = existingProgress?.completed ?? false;
+      if (passed && !completed) {
+        await transaction.lessonProgress.upsert({
+          where: {
+            userId_lessonSlug: { userId: user.id, lessonSlug },
+          },
+          create: {
+            userId: user.id,
+            lessonSlug,
+            completed: true,
+            completedAt: new Date(),
+            lastAccessedAt: new Date(),
+          },
+          update: {
+            completed: true,
+            completedAt: new Date(),
+            lastAccessedAt: new Date(),
+          },
+        });
+        completed = true;
+      }
+
+      return { attempt: savedAttempt, moduleCompleted: completed };
+    });
 
     revalidateQuizPages();
 
@@ -284,7 +325,7 @@ export async function POST(request: Request) {
         },
         passed,
         moduleCompleted,
-        passPercent: PASS_PERCENT,
+        passPercent: LESSON_QUIZ_PASS_PERCENT,
       },
       { status: 201 }
     );

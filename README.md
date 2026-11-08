@@ -73,3 +73,52 @@ npm.cmd run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
+
+## AI Physics Practice
+
+The `/ai-practice` page uses an OpenAI-compatible chat-completions API from a
+server-side route for conceptual and multiple-choice exercises. Numerical
+problem-solving and formula-application exercises use a local TypeScript
+generator with independent arithmetic validation, so they do not require a
+provider request. To enable the AI tutor, set these variables in the private
+`.env` file and in the hosting provider's server environment:
+
+```env
+OPENAI_API_KEY="your-Groq-api-key"
+AI_MODEL="qwen/qwen3.8-27b"
+AI_BASE_URL="https://api.groq.com/openai/v1"
+```
+
+`OPENAI_API_KEY` is the supported key variable; the existing `AI_API_KEY` name
+is also accepted as an alias. No additional key variable is required. The
+provider must support the OpenAI-compatible `/chat/completions` endpoint and
+JSON response format.
+`AUTH_SECRET` is also required and must be a strong random value of at least 32
+characters; the server uses it to encrypt generated answers so they are not sent
+to the browser until a student asks to reveal the solution.
+Restart the app after changing environment variables. Without a provider key,
+the local numerical generators remain available; AI-generated conceptual and
+multiple-choice exercises display a provider setup message.
+
+Authenticated students receive 15 AI-assisted questions per Manila calendar
+day. Successful local numerical questions are tracked separately and remain
+available after that allowance is used. Failed generations do not consume the
+allowance, and the server reserves AI requests atomically per student to prevent
+concurrent requests from exceeding it. Guests can use local numerical practice
+without an account; provider-backed guest requests remain subject to the
+existing per-address rate limit.
+
+The usage and verified question-bank tables require the active PostgreSQL
+migration. After updating the app, run:
+
+```powershell
+npm.cmd run db:generate
+npm.cmd run db:migrate:deploy
+```
+
+The API validates model output and independently checks every numerical
+calculation; local templates are also checked before use. This catches
+malformed calculations but does not replace expert review of AI-generated
+physics content. Requests are also limited per source address in each app
+process; multi-instance deployments should add a shared rate-limit store for a
+consistent global request rate.

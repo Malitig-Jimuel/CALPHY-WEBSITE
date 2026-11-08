@@ -12,7 +12,12 @@ import {
 } from "lucide-react";
 import LessonHeader from "../LessonHeader";
 import LessonProgressTracker from "../LessonProgressTracker";
+import LessonNavigation from "../LessonNavigation";
 import LessonQuizFeedback from "../LessonQuizFeedback";
+import {
+  LessonQuizEligibilityNotice,
+  useLessonQuizEligibility,
+} from "../LessonQuizEligibility";
 import LessonQuizQuestion, {
   getQuizOptionClass,
   QUIZ_OPTION_BASE_CLASS,
@@ -73,6 +78,94 @@ const prefixes = [
   { name: "micro", symbol: "µ", factor: "10⁻⁶", example: "1 µm = 0.000001 m" },
   { name: "nano", symbol: "n", factor: "10⁻⁹", example: "1 ns = 0.000000001 s" },
 ];
+
+const dimensionalQuantities = [
+  {
+    quantity: "Velocity",
+    symbol: "v",
+    definition: "Displacement divided by elapsed time",
+    relation: "v = Δx / Δt",
+    derivation: "[v] = [L] / [T]",
+    dimensions: "[LT⁻¹]",
+  },
+  {
+    quantity: "Acceleration",
+    symbol: "a",
+    definition: "Change in velocity divided by elapsed time",
+    relation: "a = Δv / Δt",
+    derivation: "[a] = [LT⁻¹] / [T]",
+    dimensions: "[LT⁻²]",
+  },
+  {
+    quantity: "Force",
+    symbol: "F",
+    definition: "Mass multiplied by acceleration",
+    relation: "F = ma",
+    derivation: "[F] = [M][LT⁻²]",
+    dimensions: "[MLT⁻²]",
+  },
+  {
+    quantity: "Work",
+    symbol: "W",
+    definition: "Force multiplied by displacement along the force",
+    relation: "W = Fd",
+    derivation: "[W] = [MLT⁻²][L]",
+    dimensions: "[ML²T⁻²]",
+  },
+  {
+    quantity: "Energy",
+    symbol: "E",
+    definition: "Work transferred to or from a system",
+    relation: "E = W",
+    derivation: "[E] = [W]",
+    dimensions: "[ML²T⁻²]",
+  },
+  {
+    quantity: "Power",
+    symbol: "P",
+    definition: "Work done divided by elapsed time",
+    relation: "P = W / t",
+    derivation: "[P] = [ML²T⁻²] / [T]",
+    dimensions: "[ML²T⁻³]",
+  },
+  {
+    quantity: "Pressure",
+    symbol: "p",
+    definition: "Force acting per unit area",
+    relation: "p = F / A",
+    derivation: "[p] = [MLT⁻²] / [L²]",
+    dimensions: "[ML⁻¹T⁻²]",
+  },
+  {
+    quantity: "Density",
+    symbol: "ρ",
+    definition: "Mass per unit volume",
+    relation: "ρ = m / V",
+    derivation: "[ρ] = [M] / [L³]",
+    dimensions: "[ML⁻³]",
+  },
+] as const;
+
+const dimensionalEquations = [
+  {
+    equation: "v = u + at",
+    consistent: true,
+    explanation:
+      "[v] and [u] are both [LT⁻¹]. Also, [a][t] = [LT⁻²][T] = [LT⁻¹], so every term has the dimensions of velocity.",
+  },
+  {
+    equation: "x = v + t",
+    consistent: false,
+    explanation:
+      "[x] is [L], while [v] is [LT⁻¹] and [t] is [T]. The terms on the right have different dimensions and cannot be added; they also do not match the left side.",
+  },
+  {
+    equation: "F = ma",
+    consistent: true,
+    explanation:
+      "[m][a] = [M][LT⁻²] = [MLT⁻²], which matches the dimensions of force [F].",
+  },
+] as const;
 
 const quiz = [
   {
@@ -342,6 +435,8 @@ const thClass = "bg-white/5 px-4 py-3 font-semibold text-slate-300";
 const tdClass = "border-t border-white/5 px-4 py-3 text-slate-400";
 
 export default function MeasurementsVectorsPage() {
+  const { eligibility, error: eligibilityError, refresh: refreshEligibility } =
+    useLessonQuizEligibility("measurements-vectors");
   const [magnitudeA, setMagnitudeA] = useState(8);
   const [angleA, setAngleA] = useState(30);
   const [magnitudeB, setMagnitudeB] = useState(6);
@@ -353,6 +448,9 @@ export default function MeasurementsVectorsPage() {
   const [conversionResult, setConversionResult] = useState<string | null>(null);
   const [practiceAnswer, setPracticeAnswer] = useState<string | null>(null);
   const [identificationAnswer, setIdentificationAnswer] = useState<string | null>(null);
+  const [selectedDimensionIndex, setSelectedDimensionIndex] = useState(0);
+  const [selectedEquationIndex, setSelectedEquationIndex] = useState(0);
+  const [equationAnswer, setEquationAnswer] = useState<boolean | null>(null);
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [submitted, setSubmitted] = useState(false);
   const {
@@ -453,10 +551,9 @@ export default function MeasurementsVectorsPage() {
     );
   }
 
-  function submitQuiz() {
-    if (answeredCount !== quizAttempt.length) return;
-    setSubmitted(true);
-    void saveResult(
+  async function submitQuiz() {
+    if (answeredCount !== quizAttempt.length || !eligibility?.eligible) return;
+    const saved = await saveResult(
       "measurements-vectors",
       quizAttempt.map((_, index) => answers[index] ?? -1),
       quizAttempt.map((question) => ({
@@ -467,6 +564,7 @@ export default function MeasurementsVectorsPage() {
         optionOrder: question.optionOrder,
       }))
     );
+    if (saved) setSubmitted(true);
   }
 
   function resetQuiz() {
@@ -494,7 +592,7 @@ export default function MeasurementsVectorsPage() {
                   Measurements <span className="text-sky-400">&amp; Vectors</span>
                 </>
               }
-              description="Build a reliable foundation in measurement, units, uncertainty, and two-dimensional vectors. Work through examples, try the interactive tools, then check your understanding."
+              description="Build a reliable foundation in measurement, units, uncertainty, dimensional analysis, and two-dimensional vectors. Work through examples, try the interactive tools, then check your understanding."
             />
 
             <div className="rounded-xl border border-sky-400/15 bg-sky-400/5 p-4">
@@ -952,9 +1050,370 @@ export default function MeasurementsVectorsPage() {
               </div>
             </section>
 
-            <section id="vector-intro" className="scroll-mt-6">
+            <section id="dimensional-analysis" className="scroll-mt-6">
               <SectionHeading
                 number="04"
+                title="Dimensional Analysis"
+                subtitle="Use the dimensions of physical quantities to derive dimensional formulas, check equations, and reason about relationships between measurements."
+              />
+              <div className="grid gap-5 lg:grid-cols-2">
+                <article className="rounded-2xl border border-white/10 bg-[#10182B] p-6">
+                  <h3 className="text-lg font-bold text-sky-300">
+                    Quantities, units, and dimensions
+                  </h3>
+                  <p className="mt-3 leading-7 text-slate-300">
+                    <strong className="text-white">Dimensional analysis</strong>{" "}
+                    describes physical relationships using powers of
+                    fundamental dimensions. It helps us check whether the two
+                    sides of an equation could represent the same kind of
+                    quantity, derive the dimensions of new quantities, and
+                    catch mistakes before substituting numbers.
+                  </p>
+                  <ul className="mt-4 space-y-3 text-sm leading-6 text-slate-400">
+                    <li>
+                      A <strong className="text-white">physical quantity</strong>{" "}
+                      is a measurable property, such as a duration or a
+                      distance.
+                    </li>
+                    <li>
+                      A <strong className="text-white">unit</strong> is an
+                      agreed standard used to report the quantity: seconds (s)
+                      for duration or meters (m) for distance.
+                    </li>
+                    <li>
+                      A <strong className="text-white">dimension</strong>{" "}
+                      describes the quantity&apos;s physical nature: time has
+                      dimension [T], while length has dimension [L]. Changing
+                      from meters to centimeters changes the unit, not the
+                      dimension.
+                    </li>
+                  </ul>
+                </article>
+                <article className="rounded-2xl border border-white/10 bg-[#10182B] p-6">
+                  <h3 className="text-lg font-bold text-violet-300">
+                    Fundamental dimensions
+                  </h3>
+                  <p className="mt-3 leading-7 text-slate-300">
+                    In mechanics, most dimensional formulas are built from
+                    mass [M], length [L], and time [T]. These are independent
+                    building blocks: for example, velocity is length per
+                    time, [LT⁻¹], and force combines mass, length, and time,
+                    [MLT⁻²].
+                  </p>
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    {[
+                      ["Mass", "[M]", "kilogram (kg)"],
+                      ["Length", "[L]", "meter (m)"],
+                      ["Time", "[T]", "second (s)"],
+                      ["Temperature", "[Θ]", "kelvin (K)"],
+                    ].map(([quantity, dimension, unit]) => (
+                      <div
+                        key={quantity}
+                        className="rounded-xl bg-[#080D1B] p-4"
+                      >
+                        <p className="font-semibold text-white">{quantity}</p>
+                        <p className="mt-1 font-mono text-sky-300">
+                          {dimension}
+                        </p>
+                        <p className="mt-1 text-sm text-slate-500">{unit}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="mt-4 text-sm leading-6 text-slate-400">
+                    Other SI base dimensions include electric current [I],
+                    amount of substance [N], and luminous intensity [J].
+                    Temperature is written [Θ] when thermal quantities are
+                    involved.
+                  </p>
+                </article>
+              </div>
+
+              <article className="mt-5 rounded-2xl border border-white/10 bg-[#10182B] p-5 sm:p-6">
+                <h3 className="mb-4 text-lg font-bold">
+                  Common dimensional formulas and their derivations
+                </h3>
+                <TableFrame>
+                  <table className={`${tableClass} min-w-[760px]`}>
+                    <thead>
+                      <tr>
+                        <th className={thClass}>Quantity</th>
+                        <th className={thClass}>Defining relation</th>
+                        <th className={thClass}>Dimensional substitution</th>
+                        <th className={thClass}>Dimensional formula</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {dimensionalQuantities.map((quantity) => (
+                        <tr key={quantity.quantity}>
+                          <td className={tdClass}>{quantity.quantity}</td>
+                          <td className={`${tdClass} font-mono text-slate-300`}>
+                            {quantity.relation}
+                          </td>
+                          <td className={`${tdClass} font-mono text-slate-400`}>
+                            {quantity.derivation}
+                          </td>
+                          <td className={`${tdClass} font-mono text-sky-300`}>
+                            {quantity.dimensions}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </TableFrame>
+                <p className="mt-3 text-sm leading-6 text-slate-500">
+                  Area has dimension [L²] and volume [L³]. In each derivation,
+                  substitute the dimensions of the quantities in the defining
+                  equation and combine powers of the same base dimension.
+                </p>
+              </article>
+
+              <div className="mt-5 grid gap-4 lg:grid-cols-2">
+                <WorkedExample
+                  title="Worked example · dimensions of velocity"
+                  problem="Derive the dimensional formula for velocity from its defining equation."
+                  steps={[
+                    "Velocity is displacement divided by elapsed time.",
+                    "Displacement has dimension [L], and time has dimension [T].",
+                    "Therefore [v] = [L]/[T] = [LT⁻¹].",
+                  ]}
+                  solution={{
+                    given: "Displacement Δx has dimension [L]; elapsed time Δt has dimension [T].",
+                    find: "The dimensional formula for velocity [v].",
+                    formula: "v = Δx / Δt.",
+                    substitution: "[v] = [Δx] / [Δt] = [L] / [T].",
+                    calculation: "[v] = [L][T]⁻¹ = [LT⁻¹].",
+                  }}
+                  answer="[v] = [LT⁻¹]."
+                />
+                <WorkedExample
+                  title="Worked example · dimensions of acceleration"
+                  problem="Derive the dimensional formula for acceleration from the change in velocity per unit time."
+                  steps={[
+                    "Acceleration is change in velocity divided by elapsed time.",
+                    "Velocity has dimension [LT⁻¹], and time has dimension [T].",
+                    "Therefore [a] = [LT⁻¹]/[T] = [LT⁻²].",
+                  ]}
+                  solution={{
+                    given: "Velocity change Δv has dimension [LT⁻¹]; elapsed time Δt has dimension [T].",
+                    find: "The dimensional formula for acceleration [a].",
+                    formula: "a = Δv / Δt.",
+                    substitution: "[a] = [Δv] / [Δt] = [LT⁻¹] / [T].",
+                    calculation: "[a] = [L][T]⁻² = [LT⁻²].",
+                  }}
+                  answer="[a] = [LT⁻²]."
+                />
+                <WorkedExample
+                  title="Worked example · Newton's second law"
+                  problem="Use Newton's second law to derive the dimensions of force."
+                  steps={[
+                    "Newton's second law gives force as mass multiplied by acceleration.",
+                    "Mass has dimension [M], and acceleration has dimension [LT⁻²].",
+                    "Multiplying gives [F] = [MLT⁻²].",
+                  ]}
+                  solution={{
+                    given: "Mass m has dimension [M]; acceleration a has dimension [LT⁻²].",
+                    find: "The dimensional formula for force [F].",
+                    formula: "F = ma.",
+                    substitution: "[F] = [m][a] = [M][LT⁻²].",
+                    calculation: "Combine the dimensions: [F] = [MLT⁻²].",
+                  }}
+                  answer="[F] = [MLT⁻²]."
+                />
+                <WorkedExample
+                  title="Worked example · dimensions of work"
+                  problem="Derive the dimensions of work from force and displacement."
+                  steps={[
+                    "Work is force multiplied by displacement in the direction of the force.",
+                    "Force has dimension [MLT⁻²], and displacement has dimension [L].",
+                    "Therefore [W] = [MLT⁻²][L] = [ML²T⁻²].",
+                  ]}
+                  solution={{
+                    given: "Force F has dimension [MLT⁻²]; displacement d has dimension [L].",
+                    find: "The dimensional formula for work [W].",
+                    formula: "W = Fd.",
+                    substitution: "[W] = [F][d] = [MLT⁻²][L].",
+                    calculation: "Add the length exponents: [W] = [ML²T⁻²].",
+                  }}
+                  answer="[W] = [ML²T⁻²]."
+                />
+                <WorkedExample
+                  title="Worked example · dimensions of power"
+                  problem="Derive the dimensions of power from work done per unit time."
+                  steps={[
+                    "Power is work divided by elapsed time.",
+                    "Work has dimension [ML²T⁻²], and time has dimension [T].",
+                    "Therefore [P] = [ML²T⁻²]/[T] = [ML²T⁻³].",
+                  ]}
+                  solution={{
+                    given: "Work W has dimension [ML²T⁻²]; elapsed time t has dimension [T].",
+                    find: "The dimensional formula for power [P].",
+                    formula: "P = W / t.",
+                    substitution: "[P] = [W] / [t] = [ML²T⁻²] / [T].",
+                    calculation: "Subtract one time exponent: [P] = [ML²T⁻³].",
+                  }}
+                  answer="[P] = [ML²T⁻³]."
+                />
+                <WorkedExample
+                  title="Worked example · checking an equation"
+                  problem="Check whether s = ut + ½at² is dimensionally consistent, where s is displacement."
+                  steps={[
+                    "Displacement s has dimension [L].",
+                    "Initial velocity times time has dimensions [LT⁻¹][T] = [L].",
+                    "Acceleration times time squared has dimensions [LT⁻²][T²] = [L].",
+                    "Both terms on the right and the left side have dimension [L].",
+                  ]}
+                  solution={{
+                    given: "s is displacement, u and v are velocities, a is acceleration, and t is time.",
+                    find: "Whether s = ut + ½at² is dimensionally consistent.",
+                    formula: "[s] = [L], [u] = [LT⁻¹], [a] = [LT⁻²], and [t] = [T].",
+                    substitution: "[ut] = [LT⁻¹][T] = [L]; [at²] = [LT⁻²][T²] = [L].",
+                    calculation: "The coefficient ½ is dimensionless, so each term on the right has dimension [L], matching s.",
+                  }}
+                  answer="Dimensionally consistent: every term has dimension [L]."
+                />
+              </div>
+
+              <div className="mt-5 grid gap-5 lg:grid-cols-2">
+                <article className="rounded-2xl border border-cyan-400/15 bg-cyan-400/5 p-5 sm:p-6">
+                  <h3 className="font-bold text-cyan-300">
+                    Explore a dimensional formula
+                  </h3>
+                  <p className="mt-2 text-sm leading-6 text-slate-400">
+                    Select a quantity to see its definition, defining
+                    relationship, and dimensional formula.
+                  </p>
+                  <label
+                    htmlFor="dimension-quantity"
+                    className="mt-4 block text-sm font-semibold text-slate-300"
+                  >
+                    Physical quantity
+                  </label>
+                  <select
+                    id="dimension-quantity"
+                    value={selectedDimensionIndex}
+                    onChange={(event) =>
+                      setSelectedDimensionIndex(Number(event.target.value))
+                    }
+                    className="mt-2 w-full rounded-xl border border-white/10 bg-[#080D1B] px-3 py-3 text-white outline-none focus:border-cyan-300"
+                  >
+                    {dimensionalQuantities.map((quantity, index) => (
+                      <option key={quantity.quantity} value={index}>
+                        {quantity.quantity}
+                      </option>
+                    ))}
+                  </select>
+                  <div
+                    className="mt-4 rounded-xl bg-[#080D1B] p-4"
+                    aria-live="polite"
+                  >
+                    <p className="text-sm text-slate-400">
+                      {dimensionalQuantities[selectedDimensionIndex].definition}
+                    </p>
+                    <p className="mt-3 font-mono text-sm text-slate-300">
+                      {dimensionalQuantities[selectedDimensionIndex].symbol} ·{" "}
+                      {dimensionalQuantities[selectedDimensionIndex].relation}
+                    </p>
+                    <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Dimensional formula
+                    </p>
+                    <p className="mt-1 font-mono text-2xl font-black text-cyan-200">
+                      {dimensionalQuantities[selectedDimensionIndex].dimensions}
+                    </p>
+                  </div>
+                </article>
+
+                <article className="rounded-2xl border border-violet-400/15 bg-violet-400/5 p-5 sm:p-6">
+                  <h3 className="font-bold text-violet-300">
+                    Practice · test dimensional consistency
+                  </h3>
+                  <p className="mt-2 text-sm leading-6 text-slate-400">
+                    Decide whether the selected equation is dimensionally
+                    consistent. Compare dimensions on both sides and make sure
+                    terms being added have matching dimensions.
+                  </p>
+                  <label
+                    htmlFor="dimension-equation"
+                    className="mt-4 block text-sm font-semibold text-slate-300"
+                  >
+                    Equation to check
+                  </label>
+                  <select
+                    id="dimension-equation"
+                    value={selectedEquationIndex}
+                    onChange={(event) => {
+                      setSelectedEquationIndex(Number(event.target.value));
+                      setEquationAnswer(null);
+                    }}
+                    className="mt-2 w-full rounded-xl border border-white/10 bg-[#080D1B] px-3 py-3 font-mono text-white outline-none focus:border-violet-300"
+                  >
+                    {dimensionalEquations.map((item, index) => (
+                      <option key={item.equation} value={index}>
+                        {item.equation}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-4 font-mono text-lg font-bold text-white">
+                    {dimensionalEquations[selectedEquationIndex].equation}
+                  </p>
+                  <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                    {[
+                      { label: "Consistent", value: true },
+                      { label: "Not consistent", value: false },
+                    ].map((choice) => {
+                      const selected = equationAnswer === choice.value;
+                      const correct =
+                        dimensionalEquations[selectedEquationIndex]
+                          .consistent === choice.value;
+                      const state =
+                        equationAnswer === null
+                          ? "default"
+                          : correct
+                            ? "correct"
+                            : selected
+                              ? "incorrect"
+                              : "muted";
+
+                      return (
+                        <button
+                          key={choice.label}
+                          type="button"
+                          aria-pressed={selected}
+                          onClick={() => setEquationAnswer(choice.value)}
+                          className={`${QUIZ_OPTION_BASE_CLASS} ${getQuizOptionClass(state)}`}
+                        >
+                          {choice.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {equationAnswer !== null && (
+                    <p
+                      className="mt-4 rounded-xl bg-[#080D1B] p-4 text-sm leading-6 text-slate-300"
+                      aria-live="polite"
+                    >
+                      <strong
+                        className={
+                          equationAnswer ===
+                          dimensionalEquations[selectedEquationIndex].consistent
+                            ? "text-emerald-300"
+                            : "text-rose-300"
+                        }
+                      >
+                        {equationAnswer ===
+                        dimensionalEquations[selectedEquationIndex].consistent
+                          ? "Correct. "
+                          : "Not quite. "}
+                      </strong>
+                      {dimensionalEquations[selectedEquationIndex].explanation}
+                    </p>
+                  )}
+                </article>
+              </div>
+            </section>
+
+            <section id="vector-intro" className="scroll-mt-6">
+              <SectionHeading
+                number="05"
                 title="Introduction to Scalars and Vectors"
                 subtitle="Whether a quantity needs a direction determines how it should be described and calculated."
               />
@@ -1030,7 +1489,7 @@ export default function MeasurementsVectorsPage() {
 
             <section id="components" className="scroll-mt-6">
               <SectionHeading
-                number="05"
+                number="06"
                 title="Vector Representation and Components"
                 subtitle="A vector can be drawn as a directed arrow or expressed as perpendicular components in a chosen coordinate system."
               />
@@ -1119,7 +1578,7 @@ export default function MeasurementsVectorsPage() {
 
             <section id="operations" className="scroll-mt-6">
               <SectionHeading
-                number="06"
+                number="07"
                 title="Vector Operations"
                 subtitle="Add vectors by combining like directions; subtract by adding the reversed vector. Component arithmetic works for any angle."
               />
@@ -1340,7 +1799,7 @@ export default function MeasurementsVectorsPage() {
 
             <section id="problems" className="scroll-mt-6">
               <SectionHeading
-                number="07"
+                number="08"
                 title="Solving Vector Problems"
                 subtitle="Translate the situation into a coordinate system, solve with components, and report a magnitude with a meaningful direction."
               />
@@ -1418,7 +1877,7 @@ export default function MeasurementsVectorsPage() {
 
             <section id="formula-reference" className="scroll-mt-6">
               <SectionHeading
-                number="08"
+                number="09"
                 title="Formula Reference"
                 subtitle="Use each relationship only when its assumptions fit the problem. Keep units consistent and include direction for vector quantities."
               />
@@ -1443,6 +1902,11 @@ export default function MeasurementsVectorsPage() {
             </section>
 
             <section id="quiz" className="scroll-mt-6 rounded-3xl border border-white/10 bg-[#111A2E] p-5 sm:p-7 md:p-8">
+              <LessonQuizEligibilityNotice
+                eligibility={eligibility}
+                error={eligibilityError}
+                onRetry={() => void refreshEligibility()}
+              />
               <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
                 <div>
                   <p className="text-sm font-semibold text-emerald-300">CHECK YOUR KNOWLEDGE</p>
@@ -1508,7 +1972,11 @@ export default function MeasurementsVectorsPage() {
                   <>
                     <button
                       type="button"
-                      disabled={answeredCount !== quizAttempt.length}
+                      disabled={
+                        answeredCount !== quizAttempt.length ||
+                        !eligibility?.eligible ||
+                        saveState === "saving"
+                      }
                       onClick={submitQuiz}
                       className={QUIZ_SUBMIT_BUTTON_CLASS}
                     >
@@ -1538,8 +2006,8 @@ export default function MeasurementsVectorsPage() {
                 saveState={saveState}
                 passed={passed}
                 message={saveMessage}
-                onRetry={() =>
-                  void saveResult(
+                onRetry={async () => {
+                  if (await saveResult(
                     "measurements-vectors",
                     quizAttempt.map((_, index) => answers[index] ?? -1),
                     quizAttempt.map((question) => ({
@@ -1549,14 +2017,15 @@ export default function MeasurementsVectorsPage() {
                       questionIndex: question.questionIndex,
                       optionOrder: question.optionOrder,
                     }))
-                  )
-                }
+                  )) setSubmitted(true);
+                }}
               />
             </section>
 
-            <footer className="flex flex-wrap items-center justify-between gap-4 border-t border-white/10 pt-7 text-sm">
-              <p className="text-slate-500">Module 01 · Measurements &amp; Vectors</p>
-            </footer>
+            <LessonNavigation
+              lessonSlug="measurements-vectors"
+              next={{ href: "/lessons/fluids", label: "Fluids" }}
+            />
           </div>
         </div>
       </div>

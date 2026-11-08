@@ -1,10 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  ArrowLeft,
   ArrowRight,
   BookOpen,
   CheckCircle2,
@@ -17,8 +15,13 @@ import {
   XCircle,
 } from "lucide-react";
 import LessonQuizFeedback from "../LessonQuizFeedback";
+import {
+  LessonQuizEligibilityNotice,
+  useLessonQuizEligibility,
+} from "../LessonQuizEligibility";
 import LessonHeader from "../LessonHeader";
 import LessonProgressTracker from "../LessonProgressTracker";
+import LessonNavigation from "../LessonNavigation";
 import LessonQuizQuestion, {
   getQuizOptionClass,
   QUIZ_OPTION_BASE_CLASS,
@@ -29,6 +32,30 @@ import { useLessonQuizResult } from "../useLessonQuizResult";
 import { useShuffledQuestionOrder } from "../quizRandomization";
 
 type HeatTransferMode = "conduction" | "convection" | "radiation";
+type TemperatureScale = "C" | "F" | "K";
+
+const THERMOMETER_MIN_CELSIUS = -50;
+const THERMOMETER_MAX_CELSIUS = 150;
+const THERMOMETER_TICKS = Array.from({ length: 9 }, (_, index) =>
+  THERMOMETER_MIN_CELSIUS + index * 25
+);
+
+function convertFromCelsius(value: number, scale: TemperatureScale) {
+  if (scale === "F") return (value * 9) / 5 + 32;
+  if (scale === "K") return value + 273.15;
+  return value;
+}
+
+function convertToCelsius(value: number, scale: TemperatureScale) {
+  if (scale === "F") return ((value - 32) * 5) / 9;
+  if (scale === "K") return value - 273.15;
+  return value;
+}
+
+function formatScaleTemperature(value: number, scale: TemperatureScale) {
+  const suffix = scale === "K" ? "K" : `°${scale}`;
+  return `${Number(value.toFixed(1))}${suffix}`;
+}
 
 /* ------------------------------------------------------------------ */
 /*  Content based on: PHYSICS 2 LEC 04 – Temperature and Heat (PPT)    */
@@ -341,11 +368,17 @@ const examples = [
 ];
 
 export default function TemperatureHeatPage() {
+  const { eligibility, error: eligibilityError, refresh: refreshEligibility } =
+    useLessonQuizEligibility("temperature-heat");
   // Temperature converter
   const [celsius, setCelsius] = useState(25);
   const [fahrenheitInput, setFahrenheitInput] = useState(98.6);
   const [heatTransferMode, setHeatTransferMode] =
     useState<HeatTransferMode>("conduction");
+  const [thermometerCelsius, setThermometerCelsius] = useState(22);
+  const [thermometerScale, setThermometerScale] =
+    useState<TemperatureScale>("C");
+  const [targetTemperatureCelsius, setTargetTemperatureCelsius] = useState(37);
 
   // Key ideas accordion
   const [activeIdea, setActiveIdea] = useState(0);
@@ -426,6 +459,33 @@ export default function TemperatureHeatPage() {
     ? (5 / 9) * (fahrenheitInput - 32)
     : Number.NaN;
   const thermoFraction = Math.max(0, Math.min(1, (celsius + 273.15) / 473.15));
+  const thermometerFraction = Math.max(
+    0,
+    Math.min(
+      1,
+      (thermometerCelsius - THERMOMETER_MIN_CELSIUS) /
+        (THERMOMETER_MAX_CELSIUS - THERMOMETER_MIN_CELSIUS)
+    )
+  );
+  const thermometerReading = convertFromCelsius(
+    thermometerCelsius,
+    thermometerScale
+  );
+  const targetTemperature = convertFromCelsius(
+    targetTemperatureCelsius,
+    thermometerScale
+  );
+  const thermometerTicks = THERMOMETER_TICKS.map((tickCelsius) => ({
+    celsius: tickCelsius,
+    y: 270 - ((tickCelsius - THERMOMETER_MIN_CELSIUS) / 200) * 220,
+    label: formatScaleTemperature(
+      convertFromCelsius(tickCelsius, thermometerScale),
+      thermometerScale
+    ),
+  }));
+  const targetReached = Math.abs(
+    thermometerCelsius - targetTemperatureCelsius
+  ) <= 0.5;
 
   const alpha = expansionMaterials[expMaterial].alpha * 1e-6;
   const deltaL = alpha * length0 * (expTf - expT0); // meters
@@ -452,9 +512,9 @@ export default function TemperatureHeatPage() {
     reshuffleQuiz();
   }
 
-  function submitQuiz() {
-    setSubmitted(true);
-    void saveResult(
+  async function submitQuiz() {
+    if (!eligibility?.eligible) return;
+    const saved = await saveResult(
       "temperature-heat",
       quizAttempt.map((_, index) => answers[index] ?? -1),
       quizAttempt.map((question) => ({
@@ -465,6 +525,7 @@ export default function TemperatureHeatPage() {
         optionOrder: question.optionOrder,
       }))
     );
+    if (saved) setSubmitted(true);
   }
 
   return (
@@ -908,6 +969,286 @@ export default function TemperatureHeatPage() {
           </button>
         </section>
 
+        <section
+          id="thermometer-simulation"
+          className="mb-12 scroll-mt-28 rounded-3xl border border-orange-400/20 bg-[#111A2E] p-6 md:p-8"
+        >
+          <div className="mb-6 flex items-center gap-3">
+            <div className="rounded-xl bg-orange-400/10 p-3 text-orange-300">
+              <Thermometer size={22} />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-orange-300">
+                INTERACTIVE SIMULATION
+              </p>
+              <h2 className="mt-1 text-2xl font-bold md:text-3xl">
+                Graduated Thermometer
+              </h2>
+            </div>
+          </div>
+          <p className="mb-6 max-w-4xl leading-7 text-slate-400">
+            A thermometer measures temperature by using a{" "}
+            <strong className="text-slate-200">thermometric property</strong>—a
+            physical property that changes predictably with temperature. In a
+            liquid-in-glass thermometer, the liquid expands when warmed and
+            contracts when cooled, so its level rises or falls in the narrow
+            tube. This graduated thermometer is a simplified educational model,
+            not a calibrated instrument.
+          </p>
+
+          <div className="grid gap-6 lg:grid-cols-2 lg:items-stretch">
+            <div className="space-y-5 rounded-2xl border border-white/10 bg-[#080D1B] p-5 sm:p-6">
+              <fieldset>
+                <legend className="mb-3 text-sm font-semibold text-slate-300">
+                  Temperature scale
+                </legend>
+                <div className="grid grid-cols-3 gap-2">
+                  {([
+                    ["C", "Celsius (°C)"],
+                    ["F", "Fahrenheit (°F)"],
+                    ["K", "Kelvin (K)"],
+                  ] as const).map(([scale, label]) => (
+                    <button
+                      key={scale}
+                      type="button"
+                      aria-pressed={thermometerScale === scale}
+                      onClick={() => setThermometerScale(scale)}
+                      className={`min-h-11 rounded-xl border px-3 py-2 text-sm font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-300 ${
+                        thermometerScale === scale
+                          ? "border-orange-300/50 bg-orange-300/10 text-orange-200"
+                          : "border-white/10 text-slate-300 hover:bg-white/5"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
+
+              <div>
+                <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+                  <label htmlFor="thermometer-temperature" className="text-sm text-slate-300">
+                    Set temperature <span className="text-slate-500">(°C control)</span>
+                  </label>
+                  <strong className="text-2xl font-black text-orange-300" aria-live="polite">
+                    {formatScaleTemperature(thermometerReading, thermometerScale)}
+                  </strong>
+                </div>
+                <input
+                  id="thermometer-temperature"
+                  type="range"
+                  min={THERMOMETER_MIN_CELSIUS}
+                  max={THERMOMETER_MAX_CELSIUS}
+                  step="0.5"
+                  value={thermometerCelsius}
+                  onChange={(event) =>
+                    setThermometerCelsius(Number(event.target.value))
+                  }
+                  className="w-full accent-orange-400"
+                  aria-valuetext={formatScaleTemperature(
+                    thermometerReading,
+                    thermometerScale
+                  )}
+                />
+                <div className="mt-2 flex justify-between text-xs text-slate-500">
+                  <span>{formatScaleTemperature(convertFromCelsius(-50, thermometerScale), thermometerScale)}</span>
+                  <span>{formatScaleTemperature(convertFromCelsius(150, thermometerScale), thermometerScale)}</span>
+                </div>
+              </div>
+
+              <div>
+                <p className="mb-3 text-sm font-semibold text-slate-300">
+                  Temperature presets
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { label: "Cold environment", celsius: -20 },
+                    { label: "Freezing water", celsius: 0 },
+                    { label: "Room temperature", celsius: 22 },
+                    { label: "Hot environment", celsius: 60 },
+                    { label: "Boiling water", celsius: 100 },
+                  ].map((preset) => (
+                    <button
+                      key={preset.label}
+                      type="button"
+                      aria-pressed={thermometerCelsius === preset.celsius}
+                      onClick={() => setThermometerCelsius(preset.celsius)}
+                      className={`rounded-lg border px-3 py-2 text-xs transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-300 ${
+                        thermometerCelsius === preset.celsius
+                          ? "border-orange-300/50 bg-orange-300/10 text-orange-200"
+                          : "border-white/10 text-slate-300 hover:border-orange-300/50 hover:text-orange-200"
+                      }`}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="border-t border-white/10 pt-5">
+                <h3 className="font-bold text-orange-200">
+                  Practice · reach the target
+                </h3>
+                <p className="mt-2 text-sm leading-6 text-slate-400">
+                  Set a target temperature, then adjust the thermometer until
+                  its reading is within 0.5°C of the target.
+                </p>
+                <label
+                  htmlFor="thermometer-target"
+                  className="mt-4 block text-sm text-slate-300"
+                >
+                  Target temperature ({thermometerScale === "K" ? "K" : `°${thermometerScale}`})
+                </label>
+                <input
+                  id="thermometer-target"
+                  type="number"
+                  min={convertFromCelsius(THERMOMETER_MIN_CELSIUS, thermometerScale)}
+                  max={convertFromCelsius(THERMOMETER_MAX_CELSIUS, thermometerScale)}
+                  step="0.1"
+                  value={Number(targetTemperature.toFixed(1))}
+                  onChange={(event) => {
+                    const targetInScale = Number(event.target.value);
+                    if (!event.target.value || !Number.isFinite(targetInScale)) return;
+                    const targetInCelsius = convertToCelsius(
+                      targetInScale,
+                      thermometerScale
+                    );
+                    setTargetTemperatureCelsius(
+                      Math.max(
+                        THERMOMETER_MIN_CELSIUS,
+                        Math.min(THERMOMETER_MAX_CELSIUS, targetInCelsius)
+                      )
+                    );
+                  }}
+                  className="mt-2 w-full rounded-xl border border-white/10 bg-[#111A2E] px-4 py-3 text-white outline-none focus:border-orange-300 sm:max-w-xs"
+                />
+                <p
+                  className={`mt-3 text-sm font-semibold ${
+                    targetReached ? "text-emerald-300" : "text-amber-200"
+                  }`}
+                  aria-live="polite"
+                  role="status"
+                >
+                  {targetReached
+                    ? `Target reached! The thermometer is at ${formatScaleTemperature(thermometerReading, thermometerScale)}.`
+                    : thermometerCelsius < targetTemperatureCelsius
+                      ? `Keep warming: set the thermometer to ${formatScaleTemperature(targetTemperature, thermometerScale)}.`
+                      : `Cool it down: set the thermometer to ${formatScaleTemperature(targetTemperature, thermometerScale)}.`}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex min-h-[420px] flex-col items-center justify-center rounded-2xl border border-white/10 bg-[#080D1B] p-4 sm:p-6">
+              <p className="mb-2 text-sm font-semibold text-slate-300">
+                Liquid-in-glass thermometer
+              </p>
+              <svg
+                viewBox="0 0 280 350"
+                role="img"
+                aria-label={`Graduated thermometer reading ${formatScaleTemperature(thermometerReading, thermometerScale)}. The liquid level changes with temperature.`}
+                className="h-auto w-full max-w-[280px]"
+              >
+                <defs>
+                  <linearGradient id="thermometerLiquidGradient" x1="0" x2="0" y1="1" y2="0">
+                    <stop offset="0%" stopColor="#EA580C" />
+                    <stop offset="100%" stopColor="#FDE047" />
+                  </linearGradient>
+                  <clipPath id="thermometerLiquidClip">
+                    <rect x="112" y="34" width="36" height="250" rx="18" />
+                    <circle cx="130" cy="292" r="31" />
+                  </clipPath>
+                </defs>
+                <rect
+                  x="104"
+                  y="26"
+                  width="52"
+                  height="266"
+                  rx="26"
+                  fill="#1E293B"
+                  stroke="#CBD5E1"
+                  strokeWidth="3"
+                />
+                <circle
+                  cx="130"
+                  cy="292"
+                  r="39"
+                  fill="#1E293B"
+                  stroke="#CBD5E1"
+                  strokeWidth="3"
+                />
+                <motion.rect
+                  initial={false}
+                  animate={{
+                    y: 270 - thermometerFraction * 220,
+                    height: 30 + thermometerFraction * 220,
+                  }}
+                  transition={{ type: "spring", stiffness: 90, damping: 20 }}
+                  x="112"
+                  width="36"
+                  rx="18"
+                  fill="url(#thermometerLiquidGradient)"
+                  clipPath="url(#thermometerLiquidClip)"
+                />
+                <circle cx="130" cy="292" r="29" fill="url(#thermometerLiquidGradient)" />
+                {thermometerTicks.map((tick) => (
+                  <g key={tick.celsius}>
+                    <line
+                      x1={tick.celsius % 50 === 0 ? 75 : 84}
+                      y1={tick.y}
+                      x2="101"
+                      y2={tick.y}
+                      stroke={tick.celsius % 50 === 0 ? "#CBD5E1" : "#64748B"}
+                      strokeWidth={tick.celsius % 50 === 0 ? "2" : "1.5"}
+                    />
+                    {tick.celsius % 50 === 0 && (
+                      <text
+                        x="68"
+                        y={tick.y + 4}
+                        fill="#94A3B8"
+                        fontSize="10"
+                        textAnchor="end"
+                      >
+                        {tick.label}
+                      </text>
+                    )}
+                  </g>
+                ))}
+                <motion.line
+                  initial={false}
+                  animate={{
+                    y1: 270 - thermometerFraction * 220,
+                    y2: 270 - thermometerFraction * 220,
+                  }}
+                  transition={{ type: "spring", stiffness: 90, damping: 20 }}
+                  x1="158"
+                  x2="178"
+                  stroke="#FDBA74"
+                  strokeWidth="2"
+                />
+                <text x="184" y="177" fill="#FDBA74" fontSize="10">
+                  liquid level
+                </text>
+              </svg>
+              <p className="mt-1 text-3xl font-black text-orange-300" aria-live="polite">
+                {formatScaleTemperature(thermometerReading, thermometerScale)}
+              </p>
+              <p className="mt-2 text-center text-xs leading-5 text-slate-500">
+                Graduations update when the scale changes. The illustrated liquid
+                level rises as temperature increases and falls as it decreases.
+              </p>
+            </div>
+          </div>
+          <div className="mt-5 rounded-xl border border-orange-400/15 bg-orange-400/5 p-4">
+            <p className="text-sm leading-6 text-slate-300">
+              Scale conversion uses{" "}
+              <strong className="text-orange-200">°F = (°C × 9/5) + 32</strong>{" "}
+              and <strong className="text-orange-200">K = °C + 273.15</strong>.
+              Changing the scale converts the same physical temperature; it
+              does not change the thermometer’s actual temperature.
+            </p>
+          </div>
+        </section>
+
         <section id="thermal-expansion" className="mb-12 scroll-mt-28 rounded-3xl border border-sky-400/20 bg-[#111A2E] p-6 md:p-8">
           <div className="mb-6 flex items-center gap-3">
             <div className="rounded-xl bg-sky-400/10 p-3 text-sky-300">
@@ -1214,6 +1555,11 @@ export default function TemperatureHeatPage() {
         </section>
 
         <section id="quiz" className="mb-12 scroll-mt-28 rounded-3xl border border-white/10 bg-[#111A2E] p-6 md:p-8">
+          <LessonQuizEligibilityNotice
+            eligibility={eligibility}
+            error={eligibilityError}
+            onRetry={() => void refreshEligibility()}
+          />
           <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
             <div>
               <p className="text-sm font-semibold text-emerald-300">CHECK YOUR KNOWLEDGE</p>
@@ -1298,7 +1644,11 @@ export default function TemperatureHeatPage() {
               <>
                 <button
                   type="button"
-                  disabled={answeredCount !== quizAttempt.length}
+                  disabled={
+                    answeredCount !== quizAttempt.length ||
+                    !eligibility?.eligible ||
+                    saveState === "saving"
+                  }
                   onClick={submitQuiz}
                   className={QUIZ_SUBMIT_BUTTON_CLASS}
                 >
@@ -1322,8 +1672,8 @@ export default function TemperatureHeatPage() {
             saveState={saveState}
             passed={passed}
             message={saveMessage}
-            onRetry={() =>
-              void saveResult(
+            onRetry={async () => {
+              if (await saveResult(
                 "temperature-heat",
                 quizAttempt.map((_, index) => answers[index] ?? -1),
                 quizAttempt.map((question) => ({
@@ -1333,21 +1683,16 @@ export default function TemperatureHeatPage() {
                   questionIndex: question.questionIndex,
                   optionOrder: question.optionOrder,
                 }))
-              )
-            }
+              )) setSubmitted(true);
+            }}
           />
         </section>
 
-        <footer className="flex flex-wrap items-center justify-between gap-4 border-t border-white/10 pt-6 text-sm text-slate-500">
-          <div className="flex flex-wrap gap-4">
-            <Link
-              href="/lessons/fluids"
-              className="inline-flex items-center gap-2 text-sky-300 hover:text-sky-200"
-            >
-              <ArrowLeft size={16} /> Previous: Fluids
-            </Link>
-          </div>
-        </footer>
+        <LessonNavigation
+          lessonSlug="temperature-heat"
+          previous={{ href: "/lessons/fluids", label: "Fluids" }}
+          next={{ href: "/lessons/waves-sound", label: "Waves & Sound" }}
+        />
         </div>
         </div>
       </div>
