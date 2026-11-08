@@ -7,6 +7,7 @@ import {
   Atom,
   ChevronRight,
 } from "lucide-react";
+import { interactiveSimulatorCount } from "@/lib/simulatorInventory";
 
 export default function HomePage({ isAuthenticated }: { isAuthenticated: boolean }) {
   return (
@@ -95,7 +96,7 @@ export default function HomePage({ isAuthenticated }: { isAuthenticated: boolean
 
             <div className="flex flex-col items-center">
               <p className="text-2xl font-black text-violet-300 sm:text-3xl">
-                06
+                {interactiveSimulatorCount}+
               </p>
               <p className="mt-2 text-center text-xs text-slate-500 sm:text-sm">
                 Interactive simulations

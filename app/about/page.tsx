@@ -7,6 +7,7 @@ import {
   Target,
   Waves,
 } from "lucide-react";
+import { interactiveSimulatorCount } from "@/lib/simulatorInventory";
 
 export const metadata: Metadata = {
   title: { absolute: "About Calph++" },
@@ -16,32 +17,31 @@ export const metadata: Metadata = {
 
 const learningApproaches = [
   {
-    title: "Visual Learning",
+    title: "Interactive Physics Lessons",
     short:
-      "Diagrams and interactive models show how force, pressure, and frequency change a system.",
+      "Six modules: Measurements & Vectors, Fluids, Temperature & Heat, Waves & Sound, Optics, and Electricity.",
     description:
-      "Use diagrams and interactive models to observe how quantities such as force, pressure, and wave frequency affect a system. Seeing relationships change makes abstract ideas easier to connect to physical behavior.",
+      "Explore six physics learning modules: Measurements & Vectors, Fluids, Temperature & Heat, Waves & Sound, Optics, and Electricity.",
     icon: Waves,
     accent: "text-sky-300",
     iconBackground: "bg-sky-400/10",
     border: "hover:border-sky-300/30",
   },
   {
-    title: "Guided Practice",
-    short: "Worked problems show each step, from known values to unit checks.",
+    title: "Interactive Physics Simulations",
+    short: `${interactiveSimulatorCount}+ simulators across six lessons. Change parameters and observe physics in action.`,
     description:
-      "Follow worked problems from the known values through equation selection, substitution, and unit checks. The guided steps make the reasoning visible so students can apply the same method to new questions.",
+      `Explore physics through ${interactiveSimulatorCount} interactive simulators across six lessons. Experiment with different parameters, manipulate variables, and observe how concepts behave in virtual experiments.`,
     icon: BookOpen,
     accent: "text-violet-300",
     iconBackground: "bg-violet-400/10",
     border: "hover:border-violet-300/30",
   },
   {
-    title: "Knowledge Assessment",
-    short:
-      "Topic-based questions reveal which ideas are clear and which need review.",
+    title: "Worked Examples",
+    short: "Understand physics equations through guided solutions and practical, step-by-step examples.",
     description:
-      "Try topic-based questions to find out which ideas are clear and which need another look. Explanations and saved results help learners reflect on mistakes and see their progress over time.",
+      "Understand physics equations through guided solutions, practical applications, and step-by-step explanations.",
     icon: CheckCircle2,
     accent: "text-emerald-300",
     iconBackground: "bg-emerald-400/10",
@@ -51,29 +51,28 @@ const learningApproaches = [
 
 const platformFeatures = [
   {
-    title: "Interactive Simulations",
-    short: "Adjust values and watch motion, forces, or fluid behavior respond.",
+    title: "AI-Powered Practice",
+    short: "Generate customized physics practice questions for different topics.",
     description:
-      "Adjust values in a simulation and observe the resulting motion, forces, or fluid behavior. Experimenting with one variable at a time helps reveal how a model’s quantities are related.",
+      "Generate customized physics practice questions to strengthen understanding of different physics topics.",
     icon: FlaskConical,
     accent: "text-cyan-300",
     iconBackground: "bg-cyan-400/10",
   },
   {
-    title: "Worked Examples",
-    short: "Complete solutions: givens, equation, substitution, and result check.",
+    title: "Formula Spotlight",
+    short: "Explore important physics formulas, variables, units, and applications.",
     description:
-      "Review complete solutions that identify the givens, select a suitable relationship, substitute values with units, and check the final result. Use the sequence as a guide while practicing independently.",
+      "Discover important physics formulas, understand their variables and units, and learn how they are applied.",
     icon: BookOpen,
     accent: "text-violet-300",
     iconBackground: "bg-violet-400/10",
   },
   {
-    title: "Quizzes & Saved Progress",
-    short:
-      "Get instant feedback, then sign in to save scores and track finished lessons.",
+    title: "Quick Physics Challenge & Progress",
+    short: "Take a 20-question pre-test, complete lesson quizzes, review attempts, and track saved progress.",
     description:
-      "Complete lesson quizzes for immediate feedback, then sign in to save attempts and revisit scores. Passing results mark lessons complete, making it easier to recognize finished topics and choose what to study next.",
+      "Test physics knowledge through a 20-question pre-test covering different topics. Complete lesson quizzes, review previous attempts, and track completed lessons and saved learning progress through user accounts.",
     icon: Target,
     accent: "text-sky-300",
     iconBackground: "bg-sky-400/10",
@@ -133,24 +132,22 @@ export default function AboutPage() {
             className={`mx-auto mt-[1vh] grid max-w-7xl gap-x-8 gap-y-1 text-left text-slate-300 md:grid-cols-2 ${TEXT_INTRO}`}
           >
             <p>
-              Calph++ is an interactive web-based learning platform developed
-              by BSIT-3B as a final project for Calculus-based Physics 2. It
-              combines information technology and physics education to give
-              students a more engaging, visual, and interactive way to
-              understand challenging concepts.
+              Calph++ is an interactive physics learning platform developed by
+              BSIT-3B as a final project for Calculus-based Physics 2. It aims
+              to make physics easier to understand through interactive
+              learning materials, practical examples, virtual experiments,
+              and assessments.
               <span className="hidden lg:inline">
                 {" "}
-                The project connects equations with clear explanations and
-                observable examples.
+                Explore concepts with AI practice, formula reviews, and
+                learning progress tools.
               </span>
             </p>
 
             <p className="hidden md:block">
-              Its lessons bring together concept reviews, practical
-              illustrations, guided problem solving, and self-check quizzes.
-              Students can explore at their own pace, test how ideas apply in
-              different situations, and build confidence using physics rather
-              than relying on memorized formulas alone.
+              Explore six physics modules with customized AI practice,
+              formula reviews, guided examples, and virtual experiments. Sign
+              in to review quiz attempts and track learning progress.
             </p>
           </div>
         </section>
@@ -282,12 +279,12 @@ export default function AboutPage() {
 
             <div className="grid grid-cols-2 gap-x-3 gap-y-[0.6vh] sm:grid-cols-4 sm:gap-4">
               {[
-                ["Developed by", "BSIT-3B"],
+                ["Developers", "BSIT-3B"],
                 ["Subject Instructor", "John Micheal Mendoza"],
-                ["Course", "Calculus-based Physics 2"],
+                ["Subject", "Calculus-based Physics 2"],
                 [
                   "Institution",
-                  "First Asia Institute of Technology and Humanities",
+                  "First Asia Institute of Technology And Humanities",
                 ],
               ].map(([label, value]) => (
                 <div key={label} className="min-w-0">
